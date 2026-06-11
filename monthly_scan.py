@@ -305,6 +305,27 @@ def run() -> None:
 
     print(f"  Checked/cached {len(sharia_results)} symbols")
 
+    # Persist freshly-checked grades immediately so tomorrow's run skips them
+    for sym, (grade, source) in sharia_results.items():
+        if source not in ("cached", "deferred"):
+            conn.execute(
+                """INSERT INTO constituents (symbol, sharia_grade, last_checked)
+                   VALUES (?, ?, ?)
+                   ON CONFLICT(symbol) DO UPDATE SET
+                     sharia_grade=excluded.sharia_grade,
+                     last_checked=excluded.last_checked""",
+                (sym, grade, TODAY),
+            )
+    conn.commit()
+
+    if skipped:
+        conn.close()
+        print(
+            f"Partial run: {len(to_check)} symbols checked today, "
+            f"{len(skipped)} still stale. Re-running tomorrow."
+        )
+        return
+
     print("=== Step 5: BDS compliance check ===")
     bds_results: dict[str, str] = {}
 

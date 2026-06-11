@@ -2,8 +2,9 @@ name: Monthly Constituent Scan
 
 on:
   schedule:
-    # First Monday of each month at 13:00 UTC (09:00 ET)
-    - cron: '0 13 1-7 * 1'
+    # Daily weekdays at 13:00 UTC (09:00 ET). Script exits early on partial-sharia-check
+    # days and only runs the full rebuild once all stale symbols have been refreshed.
+    - cron: '0 13 * * 1-5'
   workflow_dispatch:
 
 permissions:
