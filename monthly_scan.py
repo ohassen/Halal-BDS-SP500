@@ -64,10 +64,22 @@ TODAY = date.today().isoformat()
 # Data fetching
 # ---------------------------------------------------------------------------
 
+WIKI_HEADERS = {
+    "User-Agent": "Halal-BDS-SP500-bot/1.0 (https://github.com/ohassen/Halal-BDS-SP500; automated index fund)"
+}
+
+
+def _wiki_tables(url: str) -> list:
+    """Fetch Wikipedia page with a bot User-Agent and parse HTML tables."""
+    resp = requests.get(url, headers=WIKI_HEADERS, timeout=30)
+    resp.raise_for_status()
+    return pd.read_html(resp.text)
+
+
 def fetch_sp500() -> dict[str, str]:
     """Returns {symbol: company_name} for S&P 500 from Wikipedia."""
     try:
-        df = pd.read_html("https://en.wikipedia.org/wiki/List_of_S%26P_500_companies")[0]
+        df = _wiki_tables("https://en.wikipedia.org/wiki/List_of_S%26P_500_companies")[0]
         df["Symbol"] = df["Symbol"].str.replace(".", "-", regex=False)
         return dict(zip(df["Symbol"], df["Security"]))
     except Exception as e:
@@ -77,16 +89,13 @@ def fetch_sp500() -> dict[str, str]:
 def fetch_russell1000() -> set[str]:
     """Returns set of R1000 symbols from Wikipedia."""
     try:
-        tables = pd.read_html("https://en.wikipedia.org/wiki/Russell_1000_Index")
-        # Try each table until we find one with a Symbol/Ticker column
+        tables = _wiki_tables("https://en.wikipedia.org/wiki/Russell_1000_Index")
         for df in tables:
             cols = [c.lower() for c in df.columns]
-            if "ticker" in cols:
-                sym_col = df.columns[[c.lower() == "ticker" for c in df.columns][0:].index(True) if True in [c.lower() == "ticker" for c in df.columns] else 0]
-                return set(df[sym_col].str.replace(".", "-", regex=False).dropna())
-            if "symbol" in cols:
-                sym_col = df.columns[[c.lower() == "symbol" for c in df.columns][0:].index(True) if True in [c.lower() == "symbol" for c in df.columns] else 0]
-                return set(df[sym_col].str.replace(".", "-", regex=False).dropna())
+            for col_name in ("ticker", "symbol"):
+                if col_name in cols:
+                    idx = cols.index(col_name)
+                    return set(df.iloc[:, idx].astype(str).str.replace(".", "-", regex=False).dropna())
         raise ValueError("No Ticker/Symbol column found in any R1000 Wikipedia table")
     except Exception as e:
         print(f"WARNING: Failed to fetch Russell 1000 ({e}). Replacement pool will be empty.")
