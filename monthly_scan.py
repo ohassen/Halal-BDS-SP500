@@ -14,6 +14,7 @@ Steps:
  10. Persist to DB; write public artifacts; generate change_log entries
 """
 
+import io
 import json
 import os
 import sqlite3
@@ -73,7 +74,7 @@ def _wiki_tables(url: str) -> list:
     """Fetch Wikipedia page with a bot User-Agent and parse HTML tables."""
     resp = requests.get(url, headers=WIKI_HEADERS, timeout=30)
     resp.raise_for_status()
-    return pd.read_html(resp.text)
+    return pd.read_html(io.StringIO(resp.text))
 
 
 def fetch_sp500() -> dict[str, str]:
