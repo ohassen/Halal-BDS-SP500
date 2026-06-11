@@ -36,4 +36,4 @@ Set these in the repository's **Settings → Secrets → Actions**:
 | `ALPACA_INDEX_API_KEY` | Alpaca API key (dedicated account) |
 | `ALPACA_INDEX_API_SECRET` | Alpaca API secret |
 | `HALALSCREENER_API_KEY` | HalalScreener API key |
-| `ANTHROPIC_API_KEY` | Anthropic API key (for BDS classification) |
+| `OPENROUTER_API_KEY` | OpenRouter API key (for BDS classification via Claude Opus) |

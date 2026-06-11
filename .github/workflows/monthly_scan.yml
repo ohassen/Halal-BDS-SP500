@@ -40,7 +40,7 @@ jobs:
           ALPACA_INDEX_API_KEY: ${{ secrets.ALPACA_INDEX_API_KEY }}
           ALPACA_INDEX_API_SECRET: ${{ secrets.ALPACA_INDEX_API_SECRET }}
           HALALSCREENER_API_KEY: ${{ secrets.HALALSCREENER_API_KEY }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           ALPACA_PAPER: ${{ vars.ALPACA_PAPER || 'true' }}
         run: python monthly_scan.py
 

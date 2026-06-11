@@ -26,7 +26,7 @@ import yfinance as yf
 from alpaca.trading.client import TradingClient
 from alpaca.trading.enums import OrderSide, TimeInForce
 from alpaca.trading.requests import MarketOrderRequest
-from anthropic import Anthropic
+from openai import OpenAI
 
 from init_db import init_db
 
@@ -40,7 +40,7 @@ CHANGE_LOG_MD = "reports/change_log.md"
 
 HALALSCREENER_BASE = "https://halalscreener.app/api/v1/screen"
 HALALSCREENER_KEY = os.environ["HALALSCREENER_API_KEY"]
-ANTHROPIC_KEY = os.environ["ANTHROPIC_API_KEY"]
+OPENROUTER_KEY = os.environ["OPENROUTER_API_KEY"]
 ALPACA_KEY = os.environ["ALPACA_INDEX_API_KEY"]
 ALPACA_SECRET = os.environ["ALPACA_INDEX_API_SECRET"]
 ALPACA_PAPER = os.environ.get("ALPACA_PAPER", "true").lower() == "true"
@@ -146,10 +146,13 @@ def check_sharia(symbol: str) -> tuple[str, str]:
 
 def batch_check_bds(symbols: list[str]) -> dict[str, str]:
     """
-    Check BDS status for a batch of symbols via Claude Opus (training data only).
+    Check BDS status for a batch of symbols via OpenRouter (Claude Opus, training data only).
     Returns {symbol: "YES" | "NO" | "UNKNOWN"}.
     """
-    client = Anthropic(api_key=ANTHROPIC_KEY)
+    client = OpenAI(
+        base_url="https://openrouter.ai/api/v1",
+        api_key=OPENROUTER_KEY,
+    )
     symbol_list = ", ".join(symbols)
     prompt = (
         "You are a BDS compliance classifier. Using only your training data "
@@ -165,12 +168,12 @@ def batch_check_bds(symbols: list[str]) -> dict[str, str]:
         "Return only the JSON object, no explanation."
     )
     try:
-        message = client.messages.create(
-            model="claude-opus-4-8",
+        response = client.chat.completions.create(
+            model="anthropic/claude-opus-4-8",
             max_tokens=1024,
             messages=[{"role": "user", "content": prompt}],
         )
-        text = message.content[0].text.strip()
+        text = response.choices[0].message.content.strip()
         # Strip markdown code fences if present
         if text.startswith("```"):
             text = text.split("```")[1]
