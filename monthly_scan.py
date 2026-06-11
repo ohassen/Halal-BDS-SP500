@@ -256,6 +256,34 @@ def classify_symbol(sharia_grade: str, bds_status: str) -> tuple[str, str | None
 
 
 # ---------------------------------------------------------------------------
+# Progress reporting
+# ---------------------------------------------------------------------------
+
+PROGRESS_MD = "reports/sharia_progress.md"
+GRADE_EMOJI = {"A+": "✅", "A": "✅", "A-": "✅", "B+": "⚠️", "B": "⚠️", "B-": "⚠️",
+               "C": "❌", "D": "❌", "F": "❌", "NOT_COVERED": "❓", "UNKNOWN": "❓"}
+
+
+def _write_sharia_progress(conn: sqlite3.Connection, checked_today: int, remaining: int) -> None:
+    rows = conn.execute(
+        "SELECT symbol, sharia_grade, last_checked FROM constituents "
+        "WHERE last_checked IS NOT NULL ORDER BY symbol"
+    ).fetchall()
+    total = len(rows) + remaining
+    os.makedirs("reports", exist_ok=True)
+    with open(PROGRESS_MD, "w") as f:
+        f.write(f"# Sharia Screening Progress\n\n")
+        f.write(f"**{len(rows)} / {total} symbols screened** — {remaining} remaining\n\n")
+        f.write(f"_Last updated: {TODAY} (+{checked_today} today)_\n\n")
+        f.write("| Symbol | Grade | Checked |\n")
+        f.write("|--------|-------|--------|\n")
+        for sym, grade, checked in rows:
+            emoji = GRADE_EMOJI.get(grade, "❓")
+            f.write(f"| {sym} | {emoji} {grade} | {checked} |\n")
+    print(f"  Progress report written: {len(rows)}/{total} symbols → {PROGRESS_MD}")
+
+
+# ---------------------------------------------------------------------------
 # Main workflow
 # ---------------------------------------------------------------------------
 
@@ -332,6 +360,7 @@ def run() -> None:
     conn.commit()
 
     if skipped:
+        _write_sharia_progress(conn, len(to_check), len(skipped))
         conn.close()
         print(
             f"Partial run: {len(to_check)} symbols checked today, "

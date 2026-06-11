@@ -50,10 +50,11 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           [ -f index/constituents.csv ] && git add index/constituents.csv || true
           [ -f reports/change_log.md ] && git add reports/change_log.md || true
+          [ -f reports/sharia_progress.md ] && git add reports/sharia_progress.md || true
           if git diff --cached --quiet; then
-            echo "No changes to commit (partial run or no changes)"
+            echo "No changes to commit"
           else
-            git commit -m "Monthly scan: $(date -u +%Y-%m-%d)"
+            git commit -m "Scan update: $(date -u +%Y-%m-%d)"
             git pull --rebase origin main
             git push
           fi
