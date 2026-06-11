@@ -53,7 +53,8 @@ GRADE_RANK = {
 }
 
 MAX_INDEX_SIZE = 500
-SHARIA_RATE_LIMIT_S = 0.5
+SHARIA_RATE_LIMIT_S = 6.0   # 10 requests/minute free tier limit
+SHARIA_DAILY_CAP = 95       # stay comfortably under 100/day free tier limit
 SHARIA_MAX_RETRIES = 3
 BDS_BATCH_SIZE = 10
 STALE_DAYS = 30
@@ -273,15 +274,34 @@ def run() -> None:
     existing = load_constituents(conn)
     sharia_results: dict[str, tuple[str, str]] = {}
 
+    # Separate stale symbols (need API call) from fresh ones (use cache)
+    # Priority: never-checked first, then sorted by last_checked ascending (most stale first)
+    stale_syms = []
     for sym in all_syms:
         row = existing.get(sym)
         last_checked = row["last_checked"] if row else None
         if is_stale(last_checked):
-            grade, status = check_sharia(sym)
-            sharia_results[sym] = (grade, status)
-            time.sleep(SHARIA_RATE_LIMIT_S)
+            stale_syms.append((last_checked or "", sym))
         else:
             sharia_results[sym] = (row["sharia_grade"], "cached")
+
+    stale_syms.sort()  # None/"" sorts first → never-checked get priority
+    to_check = [sym for _, sym in stale_syms[:SHARIA_DAILY_CAP]]
+    skipped = [sym for _, sym in stale_syms[SHARIA_DAILY_CAP:]]
+
+    print(f"  {len(sharia_results)} cached, {len(to_check)} to check, {len(skipped)} deferred (daily cap)")
+
+    # Use existing grade for deferred symbols; UNKNOWN if no grade on record
+    for sym in skipped:
+        row = existing.get(sym)
+        sharia_results[sym] = (row["sharia_grade"] if row else "UNKNOWN", "deferred")
+
+    for i, sym in enumerate(to_check, 1):
+        grade, status = check_sharia(sym)
+        sharia_results[sym] = (grade, status)
+        print(f"  [{i}/{len(to_check)}] {sym}: {grade}")
+        if i < len(to_check):
+            time.sleep(SHARIA_RATE_LIMIT_S)
 
     print(f"  Checked/cached {len(sharia_results)} symbols")
 
