@@ -92,7 +92,7 @@ def fetch_russell1000() -> set[str]:
     try:
         tables = _wiki_tables("https://en.wikipedia.org/wiki/Russell_1000_Index")
         for df in tables:
-            cols = [c.lower() for c in df.columns]
+            cols = [str(c).lower() for c in df.columns]
             for col_name in ("ticker", "symbol"):
                 if col_name in cols:
                     idx = cols.index(col_name)
