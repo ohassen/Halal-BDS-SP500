@@ -1,0 +1,8 @@
+pandas
+yfinance
+alpaca-py
+anthropic
+requests
+lxml
+html5lib
+beautifulsoup4

@@ -1,0 +1,57 @@
+name: Monthly Constituent Scan
+
+on:
+  schedule:
+    # First Monday of each month at 13:00 UTC (09:00 ET)
+    - cron: '0 13 1-7 * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Restore database cache
+        uses: actions/cache@v4
+        with:
+          path: index_fund.db
+          key: index-fund-db-${{ github.run_number }}
+          restore-keys: |
+            index-fund-db-
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run monthly scan
+        env:
+          ALPACA_INDEX_API_KEY: ${{ secrets.ALPACA_INDEX_API_KEY }}
+          ALPACA_INDEX_API_SECRET: ${{ secrets.ALPACA_INDEX_API_SECRET }}
+          HALALSCREENER_API_KEY: ${{ secrets.HALALSCREENER_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ALPACA_PAPER: ${{ vars.ALPACA_PAPER || 'true' }}
+        run: python monthly_scan.py
+
+      - name: Commit public artifacts
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add index/constituents.csv reports/change_log.md
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Monthly scan: $(date -u +%Y-%m-%d)"
+            git pull --rebase origin main
+            git push
+          fi

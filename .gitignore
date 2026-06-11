@@ -1,0 +1,6 @@
+index_fund.db
+reports/daily_buys.md
+logs/
+__pycache__/
+*.pyc
+.env
