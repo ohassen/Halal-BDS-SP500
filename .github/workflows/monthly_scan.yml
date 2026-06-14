@@ -2,9 +2,13 @@ name: Monthly Constituent Scan
 
 on:
   schedule:
-    # Daily weekdays at 13:00 UTC (09:00 ET). Script exits early on partial-sharia-check
-    # days and only runs the full rebuild once all stale symbols have been refreshed.
-    - cron: '0 13 * * 1-5'
+    # Every day at 13:00 UTC (09:00 ET), including weekends. The scan is gated by the
+    # HalalScreener free-tier daily API cap, not by market hours: it refreshes up to ~95
+    # stale symbols per run, exits early on partial-sharia-check days, and only runs the
+    # full rebuild once all stale symbols have been refreshed. Running on weekends adds two
+    # extra refresh days per week so the rolling re-check completes sooner. Any force-sell
+    # orders submitted while the market is closed simply queue for the next session.
+    - cron: '0 13 * * *'
   workflow_dispatch:
 
 permissions:
