@@ -8,7 +8,9 @@ A self-managed **direct index** that replicates the S&P 500 with Shariah complia
 
 ## How it works
 
-**Monthly scan** (`monthly_scan.py`, runs daily at 09:00 ET — see note below): rebuilds the 500-name target list from the S&P 500 (backfilled from the Russell 1000 when names are excluded), re-checks Sharia grades and BDS status, force-sells any removed holdings, recomputes market-cap target weights, and commits updated public artifacts.
+**Monthly scan** (`monthly_scan.py`, runs daily at 09:00 ET — see note below): rebuilds a **strict 500-name list** from the S&P 500 (backfilled from the Russell 1000 when names are excluded), re-checks Sharia grades and BDS status, force-sells any removed holdings, recomputes market-cap target weights, archives a monthly weights snapshot, appends any membership/status/grade/BDS changes to a permanent event log, and commits the updated public artifacts.
+
+The list is held to exactly 500 names. Held S&P 500 members count toward the 500 — both `ACTIVE` (buy-eligible) and `WARNED` (grade D; held, no new buys) — and remaining slots are backfilled from the largest ACTIVE Russell 1000 names. Target weights are computed across exactly these 500 and sum to 100%.
 
 **Daily invest** (`daily_invest.py`, weekdays 09:35 ET): deploys available cash into the most underweight holdings via fractional notional market orders. Skips when cash is below \$20.
 
@@ -33,8 +35,10 @@ Because this throttling is driven purely by an **API daily limit and not by mark
 
 ## Public artifacts
 
-- [`index/constituents.csv`](index/constituents.csv) — current index composition with grades, BDS status, and target weights
-- [`reports/change_log.md`](reports/change_log.md) — rolling 30 trading days of additions, removals, and warnings
+- [`index/constituents.csv`](index/constituents.csv) — the strict 500-name index composition with grades, BDS status, and target weights (weights sum to 100%)
+- `index/snapshots/YYYY-MM.csv` — one dated snapshot of the full 500-name list and weights per calendar month, for historical/point-in-time reference
+- [`reports/event_log.csv`](reports/event_log.csv) — **permanent, append-only** log of every event: `INDEX_ADDED`, `INDEX_REMOVED`, `STATUS_CHANGE`, `GRADE_CHANGE`, `BDS_CHANGE` (columns: `Date, Symbol, Company, EventType, OldValue, NewValue, Reason`)
+- [`reports/change_log.md`](reports/change_log.md) — human-readable, rolling 30 trading days of additions, removals, and warnings
 - [`reports/sharia_progress.md`](reports/sharia_progress.md) — progress of the multi-day Sharia re-check cycle
 
 ---
@@ -142,8 +146,10 @@ Key constants you may want to adjust live near the top of the scripts:
 ├── daily_invest.py          # underweight-gap cash deployment
 ├── init_db.py               # SQLite schema bootstrap
 ├── requirements.txt         # Python dependencies
-├── index/constituents.csv   # public: current index composition
-└── reports/                 # public: change_log.md, sharia_progress.md
+├── index/
+│   ├── constituents.csv     # public: strict 500-name index composition
+│   └── snapshots/           # public: one dated weights snapshot per month
+└── reports/                 # public: event_log.csv, change_log.md, sharia_progress.md
 ```
 
 See [`HalalBDSSP500PRD.md`](HalalBDSSP500PRD.md) for the full product requirements and design rationale.
