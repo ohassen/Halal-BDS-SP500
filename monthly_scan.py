@@ -38,6 +38,8 @@ from init_db import init_db
 DB_PATH = "index_fund.db"
 INDEX_CSV = "index/constituents.csv"
 CHANGE_LOG_MD = "reports/change_log.md"
+EVENT_LOG_CSV = "reports/event_log.csv"   # append-only, permanent history of all events
+SNAPSHOT_DIR = "index/snapshots"          # one dated weights snapshot per month
 
 HALALSCREENER_BASE = "https://halalscreener.app/api/v1/screen"
 HALALSCREENER_KEY = os.environ["HALALSCREENER_API_KEY"]
@@ -399,39 +401,40 @@ def run() -> None:
         status, reason = classify_symbol(grade, bds)
         classifications[sym] = (status, reason)
 
-    print("=== Step 7: Build 500-name list ===")
-    # Start with S&P 500 ACTIVE symbols
-    sp500_active = [s for s in sp500_syms if classifications[s][0] == "ACTIVE"]
-    index_syms = list(sp500_active)
+    print("=== Step 7: Build strict 500-name list ===")
+    # Held S&P 500 members come first: ACTIVE (buy-eligible) and WARNED (held, no new
+    # buys) both count toward the 500. Sort by market cap so that, in the rare case the
+    # held S&P set exceeds 500, we keep the largest names.
+    sp500_members = [
+        s for s in sp500_syms
+        if classifications[s][0] in ("ACTIVE", "WARNED") and market_caps.get(s, 0) > 0
+    ]
+    sp500_members.sort(key=lambda s: market_caps.get(s, 0), reverse=True)
+    index_syms = sp500_members[:MAX_INDEX_SIZE]
 
-    # Backfill from replacement pool if needed
+    # Backfill any remaining slots from the Russell 1000 replacement pool (ACTIVE only).
     if len(index_syms) < MAX_INDEX_SIZE:
         pool_active = [
             s for s in replacement_pool_syms
             if classifications[s][0] == "ACTIVE" and market_caps.get(s, 0) > 0
         ]
-        # Sort replacement pool by market cap descending
         pool_active.sort(key=lambda s: market_caps.get(s, 0), reverse=True)
         needed = MAX_INDEX_SIZE - len(index_syms)
         index_syms.extend(pool_active[:needed])
 
+    index_set = set(index_syms)
     print(f"  Index size: {len(index_syms)} (target: {MAX_INDEX_SIZE})")
 
-    # Include WARNED S&P 500 symbols too — they stay in the index
-    warned_sp500 = [s for s in sp500_syms if classifications[s][0] == "WARNED"]
-    all_index_syms = list(dict.fromkeys(index_syms + warned_sp500))  # dedup, preserve order
-
     print("=== Step 8: Compute target weights ===")
+    # Weights are computed over exactly the 500 index members (ACTIVE + WARNED) and sum
+    # to 1.0. WARNED names hold their weight; daily_invest only deploys cash into ACTIVE.
     total_cap = sum(market_caps.get(s, 0) for s in index_syms)
     if total_cap == 0:
         raise RuntimeError("Total market cap is 0 — cannot compute weights")
 
-    target_weights: dict[str, float] = {}
-    for sym in index_syms:
-        target_weights[sym] = market_caps.get(sym, 0) / total_cap
-    for sym in warned_sp500:
-        if sym not in target_weights:
-            target_weights[sym] = market_caps.get(sym, 0) / total_cap
+    target_weights: dict[str, float] = {
+        sym: market_caps.get(sym, 0) / total_cap for sym in index_syms
+    }
 
     weight_sum = sum(target_weights.values())
     assert abs(weight_sum - 1.0) < 1e-6, f"Weights sum to {weight_sum}, expected 1.0"
@@ -481,6 +484,8 @@ def run() -> None:
 
     print("=== Step 10: Persist to DB + generate reports ===")
     change_events: list[tuple] = []
+    # Permanent event log rows: (date, symbol, company, event_type, old_value, new_value, reason)
+    event_rows: list[tuple] = []
 
     for sym in all_syms:
         grade, _ = sharia_results.get(sym, ("UNKNOWN", "UNKNOWN"))
@@ -493,8 +498,11 @@ def run() -> None:
         old_row = existing.get(sym)
         old_status = old_row["index_status"] if old_row else None
         old_grade = old_row["sharia_grade"] if old_row else None
+        old_bds = old_row["bds_status"] if old_row else None
+        old_member = bool(old_row) and (old_row.get("target_weight") or 0) > 0
+        new_member = sym in index_set
 
-        # Determine event type for change log
+        # Determine event type for the rolling change log (human-readable, 30-day view)
         if status == "REMOVED" and old_status != "REMOVED":
             event = "REMOVED"
             change_events.append((TODAY, sym, event, old_grade, grade, bds, reason))
@@ -504,6 +512,18 @@ def run() -> None:
         elif status == "ACTIVE" and old_status in ("WARNED", "REMOVED", None):
             event = "ADDED" if old_status is None else "WARNING_CLEARED"
             change_events.append((TODAY, sym, event, old_grade, grade, bds, reason))
+
+        # Permanent event log: index membership, status, grade and BDS transitions
+        if new_member and not old_member:
+            event_rows.append((TODAY, sym, company, "INDEX_ADDED", "", status, reason or ""))
+        elif old_member and not new_member:
+            event_rows.append((TODAY, sym, company, "INDEX_REMOVED", old_status or "", status, reason or ""))
+        if old_status and old_status != status:
+            event_rows.append((TODAY, sym, company, "STATUS_CHANGE", old_status, status, reason or ""))
+        if old_grade and grade != "UNKNOWN" and old_grade != grade:
+            event_rows.append((TODAY, sym, company, "GRADE_CHANGE", old_grade, grade, ""))
+        if old_bds and bds != "UNKNOWN" and old_bds != bds:
+            event_rows.append((TODAY, sym, company, "BDS_CHANGE", old_bds, bds, ""))
 
         removed_date = TODAY if status == "REMOVED" else (old_row["removed_date"] if old_row else None)
         added_date = (old_row["added_date"] if old_row else None) or (TODAY if status != "REMOVED" else None)
@@ -550,14 +570,18 @@ def run() -> None:
     conn.commit()
 
     # --- Public artifacts ---
-    active_rows = conn.execute(
-        """SELECT symbol, company_name, sharia_grade, bds_status, target_weight, index_status, warning_reason
-           FROM constituents WHERE index_status IN ('ACTIVE', 'WARNED')
-           ORDER BY target_weight DESC"""
+    # constituents.csv is the strict index membership: exactly the symbols selected into
+    # the 500 (ACTIVE + WARNED), ordered by target weight descending.
+    placeholders = ",".join("?" * len(index_syms))
+    member_rows = conn.execute(
+        f"""SELECT symbol, company_name, sharia_grade, bds_status, target_weight, index_status, warning_reason
+            FROM constituents WHERE symbol IN ({placeholders})
+            ORDER BY target_weight DESC""",
+        index_syms,
     ).fetchall()
 
     csv_rows = []
-    for r in active_rows:
+    for r in member_rows:
         csv_rows.append({
             "Symbol": r[0],
             "Company": r[1],
@@ -567,12 +591,38 @@ def run() -> None:
             "IndexStatus": r[5],
             "Warning": r[6] or "",
         })
-    pd.DataFrame(csv_rows).to_csv(INDEX_CSV, index=False)
+    df = pd.DataFrame(csv_rows)
+    df.to_csv(INDEX_CSV, index=False)
     print(f"  Wrote {INDEX_CSV} ({len(csv_rows)} rows)")
+
+    # Monthly weights snapshot: one dated file per calendar month (refreshed if more than
+    # one full scan lands in the same month).
+    os.makedirs(SNAPSHOT_DIR, exist_ok=True)
+    snapshot_path = f"{SNAPSHOT_DIR}/{TODAY[:7]}.csv"
+    df.to_csv(snapshot_path, index=False)
+    print(f"  Wrote monthly snapshot {snapshot_path}")
+
+    # Permanent, append-only event log
+    _append_event_log(event_rows)
 
     _write_change_log(conn)
     conn.close()
     print("Monthly scan complete.")
+
+
+def _append_event_log(event_rows: list[tuple]) -> None:
+    """Append events to a permanent, never-trimmed CSV. Header written once."""
+    if not event_rows:
+        print(f"  No events to log this run ({EVENT_LOG_CSV} unchanged)")
+        return
+    os.makedirs(os.path.dirname(EVENT_LOG_CSV), exist_ok=True)
+    write_header = not os.path.exists(EVENT_LOG_CSV)
+    new = pd.DataFrame(
+        event_rows,
+        columns=["Date", "Symbol", "Company", "EventType", "OldValue", "NewValue", "Reason"],
+    )
+    new.to_csv(EVENT_LOG_CSV, mode="a", header=write_header, index=False)
+    print(f"  Appended {len(event_rows)} event(s) to {EVENT_LOG_CSV}")
 
 
 def _write_change_log(conn: sqlite3.Connection) -> None:
