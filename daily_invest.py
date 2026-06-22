@@ -4,7 +4,8 @@ Daily cash-deploy workflow for Halal-BDS-SP500.
 Steps:
   1. Check available cash — exit if < $20
   2. Fetch current Alpaca positions
-  3. Load target weights from constituents (ACTIVE only)
+  3. Load target weights for ACTIVE constituents — preferring the git-committed
+     index/constituents.csv, falling back to the cached DB
   4. Compute portfolio gaps (target_weight - actual_weight)
   5. Rank by gap descending, take top 20
   6. Allocate cash proportionally, enforce $1 minimum per order
@@ -13,6 +14,7 @@ Steps:
   9. Append summary to gitignored reports/daily_buys.md
 """
 
+import csv
 import os
 import sqlite3
 from datetime import date
@@ -28,6 +30,7 @@ from init_db import init_db
 # ---------------------------------------------------------------------------
 
 DB_PATH = "index_fund.db"
+INDEX_CSV = "index/constituents.csv"
 DAILY_BUYS_MD = "reports/daily_buys.md"
 
 ALPACA_KEY = os.environ["ALPACA_INDEX_API_KEY"]
@@ -38,6 +41,45 @@ MIN_CASH = 20.0
 MIN_NOTIONAL = 1.0
 TOP_N_GAPS = 20
 TODAY = date.today().isoformat()
+
+
+# ---------------------------------------------------------------------------
+# Target weights
+# ---------------------------------------------------------------------------
+
+def load_target_weights(conn: sqlite3.Connection) -> dict[str, float]:
+    """Return {symbol: target_weight_fraction} for ACTIVE constituents.
+
+    The git-committed index/constituents.csv is the source of truth and is
+    preferred: monthly_scan commits it, and the daily workflow checks it out,
+    so it always reflects the latest scan. The cached index_fund.db, by
+    contrast, can lag many runs behind because the two workflows keep separate
+    GitHub Actions cache key counters. We fall back to the DB only when the CSV
+    is missing or has no ACTIVE rows.
+
+    Note: the CSV stores TargetWeightPct as a percentage (e.g. 11.2894), while
+    the DB stores target_weight as a fraction; we normalise both to fractions.
+    """
+    if os.path.exists(INDEX_CSV):
+        weights: dict[str, float] = {}
+        with open(INDEX_CSV, newline="") as f:
+            for row in csv.DictReader(f):
+                if row.get("IndexStatus") != "ACTIVE":
+                    continue
+                try:
+                    weights[row["Symbol"]] = float(row["TargetWeightPct"]) / 100.0
+                except (KeyError, ValueError):
+                    continue
+        if weights:
+            print(f"Loaded {len(weights)} ACTIVE constituents from {INDEX_CSV}")
+            return weights
+        print(f"{INDEX_CSV} present but no ACTIVE rows; falling back to DB.")
+
+    rows = conn.execute(
+        "SELECT symbol, target_weight FROM constituents WHERE index_status = 'ACTIVE'"
+    ).fetchall()
+    print(f"Loaded {len(rows)} ACTIVE constituents from DB ({DB_PATH})")
+    return {r[0]: r[1] for r in rows}
 
 
 # ---------------------------------------------------------------------------
@@ -65,16 +107,12 @@ def run() -> None:
     positions = alpaca.get_all_positions()
     pos_map: dict[str, float] = {p.symbol: float(p.market_value) for p in positions}
 
-    # Step 3: Load target weights
-    rows = conn.execute(
-        "SELECT symbol, target_weight FROM constituents WHERE index_status = 'ACTIVE'"
-    ).fetchall()
-    if not rows:
-        print("No ACTIVE constituents in DB. Run monthly_scan.py first.")
+    # Step 3: Load target weights (prefer committed CSV over cached DB)
+    target_weights = load_target_weights(conn)
+    if not target_weights:
+        print("No ACTIVE constituents in CSV or DB. Run monthly_scan.py first.")
         conn.close()
         return
-
-    target_weights: dict[str, float] = {r[0]: r[1] for r in rows}
 
     # Step 4: Compute gaps
     total_portfolio = sum(pos_map.values()) + cash
