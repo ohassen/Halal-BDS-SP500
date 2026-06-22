@@ -11,9 +11,11 @@ second run exits at the cash check below.
 
 Steps:
   1. Check available cash — exit if < $20
-  2. Load ACTIVE target weights (prefer committed index/constituents.csv)
-  3. Allocate all cash proportional to target weight, $1 minimum per name, so
-     every ACTIVE name gets seeded
+  2. Fetch current positions and load ACTIVE target weights (prefer the
+     committed index/constituents.csv)
+  3. Compute each name's gap below target (from an empty account this equals
+     its target weight) and allocate all cash proportional to gap, $1 minimum
+     per name so every under-target name gets seeded
   4. Place fractional notional market orders
   5. Save orders to the transactions table
   6. Append a summary to gitignored reports/initial_buy.md
@@ -46,25 +48,25 @@ INITIAL_BUY_MD = "reports/initial_buy.md"
 # ---------------------------------------------------------------------------
 
 def compute_allocations(
-    weights: dict[str, float], cash: float
+    gaps: dict[str, float], cash: float
 ) -> list[tuple[str, float]]:
-    """Split `cash` across `weights` proportional to target weight.
+    """Split `cash` across `gaps` proportional to each name's gap below target.
 
-    Every name is first reserved the $1 minimum so all positions are actually
-    established, then the remainder is distributed proportional to weight. If
-    there isn't enough cash to give every name $1, the largest weights are
+    Every name is first reserved the $1 minimum so all under-target positions
+    are actually established, then the remainder is distributed proportional to
+    gap. If there isn't enough cash to give every name $1, the largest gaps are
     funded first until cash runs out.
     """
-    syms = sorted(weights, key=lambda s: weights[s], reverse=True)
+    syms = sorted(gaps, key=lambda s: gaps[s], reverse=True)
     n = len(syms)
-    total_w = sum(weights.values())
+    total_gap = sum(gaps.values())
 
-    # Not enough cash to seed every name at the floor: fund largest first.
+    # Not enough cash to seed every name at the floor: fund largest gaps first.
     if cash < n * MIN_NOTIONAL:
         allocations: list[tuple[str, float]] = []
         remaining = cash
         for sym in syms:
-            alloc = max(round(weights[sym] / total_w * cash, 2), MIN_NOTIONAL)
+            alloc = max(round(gaps[sym] / total_gap * cash, 2), MIN_NOTIONAL)
             if alloc > remaining:
                 alloc = round(remaining, 2)
             if alloc < MIN_NOTIONAL:
@@ -75,10 +77,10 @@ def compute_allocations(
                 break
         return allocations
 
-    # Reserve $1 per name, distribute the rest proportional to weight.
+    # Reserve $1 per name, distribute the rest proportional to gap.
     remainder = cash - n * MIN_NOTIONAL
     allocations = [
-        (sym, round(MIN_NOTIONAL + (weights[sym] / total_w) * remainder, 2))
+        (sym, round(MIN_NOTIONAL + (gaps[sym] / total_gap) * remainder, 2))
         for sym in syms
     ]
 
@@ -111,19 +113,37 @@ def run() -> None:
         conn.close()
         return
 
-    held = len(alpaca.get_all_positions())
-    if held:
-        print(f"Note: account already holds {held} position(s); seeding proceeds with available cash.")
+    # Step 2: Fetch current positions
+    positions = alpaca.get_all_positions()
+    pos_map = {p.symbol: float(p.market_value) for p in positions}
+    if pos_map:
+        print(f"Note: account already holds {len(pos_map)} position(s); funding by gap to target.")
 
-    # Step 2: Load target weights (prefer committed CSV over cached DB)
-    weights = load_target_weights(conn)
-    if not weights:
+    # Load target weights (prefer committed CSV over cached DB)
+    target_weights = load_target_weights(conn)
+    if not target_weights:
         print("No ACTIVE constituents in CSV or DB. Run monthly_scan.py first.")
         conn.close()
         return
 
-    # Step 3: Allocate all cash proportional to target weight
-    allocations = compute_allocations(weights, cash)
+    # Step 3: Compute each name's gap below target, then allocate all cash
+    # proportional to gap. From an empty account every current weight is 0, so
+    # gaps equal target weights and this is a straight market-cap-weighted seed;
+    # if positions already exist, it tops up the most-underweight names first.
+    total_portfolio = sum(pos_map.values()) + cash
+    gaps: dict[str, float] = {}
+    for sym, target in target_weights.items():
+        actual = pos_map.get(sym, 0.0) / total_portfolio
+        gap = target - actual
+        if gap > 0:
+            gaps[sym] = gap
+
+    if not gaps:
+        print("All ACTIVE names already at or above target — nothing to buy.")
+        conn.close()
+        return
+
+    allocations = compute_allocations(gaps, cash)
     total = sum(a for _, a in allocations)
     print(f"Seeding {len(allocations)} positions, total=${total:.2f}")
 
