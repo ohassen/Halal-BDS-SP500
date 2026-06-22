@@ -7,7 +7,7 @@ Steps:
   3. Load target weights for ACTIVE constituents — preferring the git-committed
      index/constituents.csv, falling back to the cached DB
   4. Compute portfolio gaps (target_weight - actual_weight)
-  5. Rank by gap descending, take top 20
+  5. Rank by gap descending, take top 100
   6. Allocate cash proportionally, enforce $1 minimum per order
   7. Place fractional notional market orders
   8. Save orders to transactions table
@@ -39,7 +39,7 @@ ALPACA_PAPER = os.environ.get("ALPACA_PAPER", "true").lower() == "true"
 
 MIN_CASH = 20.0
 MIN_NOTIONAL = 1.0
-TOP_N_GAPS = 20
+TOP_N_GAPS = 100
 TODAY = date.today().isoformat()
 
 

@@ -1,0 +1,51 @@
+name: Monthly Rebalance
+
+on:
+  schedule:
+    # 1st of each month at 14:00 UTC. If the 1st is a weekend/holiday, Alpaca
+    # rejects the closed-market orders for that run; trigger manually or wait for
+    # the next month. Trims are sell-only; freed cash redeploys via the daily job.
+    - cron: '0 14 1 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rebalance:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Restore database cache
+        uses: actions/cache@v4
+        with:
+          path: index_fund.db
+          key: index-fund-db-${{ github.run_number }}
+          restore-keys: |
+            index-fund-db-
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run monthly rebalance
+        env:
+          ALPACA_INDEX_API_KEY: ${{ secrets.ALPACA_INDEX_API_KEY }}
+          ALPACA_INDEX_API_SECRET: ${{ secrets.ALPACA_INDEX_API_SECRET }}
+          ALPACA_PAPER: ${{ vars.ALPACA_PAPER || 'true' }}
+        run: python monthly_rebalance.py
+
+      - name: Save updated database cache
+        uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: index_fund.db
+          key: index-fund-db-${{ github.run_number }}

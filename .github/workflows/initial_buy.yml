@@ -1,0 +1,51 @@
+name: Initial Buy
+
+# Manual, one-time portfolio seed. Run from the Actions tab via "Run workflow".
+# Establishes a position in every ACTIVE constituent proportional to target
+# weight, deploying all available cash. The Daily Investment job handles ongoing
+# cash afterward. Safe to leave in place: re-running exits at the cash check once
+# the account is already invested.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Restore database cache
+        uses: actions/cache@v4
+        with:
+          path: index_fund.db
+          key: index-fund-db-${{ github.run_number }}
+          restore-keys: |
+            index-fund-db-
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run initial buy
+        env:
+          ALPACA_INDEX_API_KEY: ${{ secrets.ALPACA_INDEX_API_KEY }}
+          ALPACA_INDEX_API_SECRET: ${{ secrets.ALPACA_INDEX_API_SECRET }}
+          ALPACA_PAPER: ${{ vars.ALPACA_PAPER || 'true' }}
+        run: python initial_buy.py
+
+      - name: Save updated database cache
+        uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: index_fund.db
+          key: index-fund-db-${{ github.run_number }}
