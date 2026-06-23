@@ -337,14 +337,10 @@ def classify_symbol(sharia_grade: str, bds_status: str) -> tuple[str, str | None
     if sharia_grade == "D":
         return "WARNED", "sharia_D"
 
-    # Fail closed on BDS: only a confirmed "not targeted" (YES) is eligible for
-    # ACTIVE. An indeterminate verdict is held-and-flagged (WARNED), never quietly
-    # admitted to the index — and never force-sold on a transient/unknown result.
-    # (bds_status == "NO" was already force-sold above.)
-    if bds_status != "YES":
-        return "WARNED", "bds_unknown"
-
-    # Active: grade >= B- (rank >= 4) and BDS confirmed not targeted
+    # BDS: only a confirmed target (bds_status == "NO", force-sold above) is
+    # excluded. UNKNOWN is the normal state for the vast majority of companies —
+    # they simply aren't named in any BDS campaign — so it is treated as eligible,
+    # exactly like a confirmed "not targeted" (YES). UNKNOWN is never a warning.
     if grade_rank is not None and grade_rank >= GRADE_RANK["B-"]:
         return "ACTIVE", None
 
