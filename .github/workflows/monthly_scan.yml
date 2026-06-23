@@ -44,7 +44,7 @@ jobs:
           ALPACA_INDEX_API_KEY: ${{ secrets.ALPACA_INDEX_API_KEY }}
           ALPACA_INDEX_API_SECRET: ${{ secrets.ALPACA_INDEX_API_SECRET }}
           HALALSCREENER_API_KEY: ${{ secrets.HALALSCREENER_API_KEY }}
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           ALPACA_PAPER: ${{ vars.ALPACA_PAPER || 'true' }}
         run: python monthly_scan.py
 
@@ -53,6 +53,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           [ -f index/constituents.csv ] && git add index/constituents.csv || true
+          [ -f index/bds_state.json ] && git add index/bds_state.json || true
           [ -d index/snapshots ] && git add index/snapshots || true
           [ -f reports/change_log.md ] && git add reports/change_log.md || true
           [ -f reports/event_log.csv ] && git add reports/event_log.csv || true

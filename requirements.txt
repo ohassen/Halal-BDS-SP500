@@ -1,7 +1,7 @@
 pandas
 yfinance
 alpaca-py
-openai
+anthropic
 requests
 lxml
 html5lib
