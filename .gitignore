@@ -2,6 +2,7 @@ index_fund.db
 reports/daily_buys.md
 reports/initial_buy.md
 reports/rebalance.md
+reports/liquidate.md
 logs/
 __pycache__/
 *.pyc
