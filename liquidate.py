@@ -21,6 +21,7 @@ Steps:
 
 import os
 import sqlite3
+import time
 
 from alpaca.trading.client import TradingClient
 
@@ -34,6 +35,14 @@ from daily_invest import (
 )
 
 LIQUIDATE_MD = "reports/liquidate.md"
+
+# After submitting the market sells, wait until the account is genuinely flat
+# before returning. This matters when pairing with Initial Buy: if the buy reads
+# the account while sell proceeds are already in cash but the position rows
+# haven't zeroed yet, it sees those names as still-held and skips them. Blocking
+# here until positions clear guarantees the next run starts from a clean slate.
+SETTLE_TIMEOUT = 180   # seconds to wait for positions to clear
+SETTLE_POLL = 5        # seconds between checks
 
 
 def run() -> None:
@@ -95,9 +104,29 @@ def run() -> None:
 
     conn.close()
     print(
-        f"Liquidation submitted: {len(positions)} position(s), ${total:.2f}. "
-        "Once filled, run Initial Buy to redistribute the cash across the index."
+        f"Liquidation submitted: {len(positions)} position(s), ${total:.2f}."
     )
+
+    # Block until the account is flat so a follow-up Initial Buy sees a clean
+    # slate (see SETTLE_TIMEOUT note above).
+    deadline = time.time() + SETTLE_TIMEOUT
+    remaining = positions
+    while remaining and time.time() < deadline:
+        time.sleep(SETTLE_POLL)
+        remaining = alpaca.get_all_positions()
+        print(f"  settling… {len(remaining)} position(s) still open")
+
+    if remaining:
+        print(
+            f"WARNING: {len(remaining)} position(s) still open after "
+            f"{SETTLE_TIMEOUT}s. Wait for them to clear before running Initial Buy."
+        )
+    else:
+        cash = float(alpaca.get_account().cash)
+        print(
+            f"Account is flat. Available cash: ${cash:.2f}. "
+            "Run Initial Buy to redistribute across the index."
+        )
 
 
 if __name__ == "__main__":
