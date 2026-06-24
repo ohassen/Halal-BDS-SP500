@@ -38,12 +38,12 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Run monthly rebalance
+      - name: Run quarterly rebalance
         env:
           ALPACA_INDEX_API_KEY: ${{ secrets.ALPACA_INDEX_API_KEY }}
           ALPACA_INDEX_API_SECRET: ${{ secrets.ALPACA_INDEX_API_SECRET }}
           ALPACA_PAPER: ${{ vars.ALPACA_PAPER || 'true' }}
-        run: python monthly_rebalance.py
+        run: python quarterly_rebalance.py
 
       - name: Save updated database cache
         uses: actions/cache/save@v4

@@ -90,7 +90,7 @@ Schedules live in `.github/workflows/`. Adjust the cron expressions for your tim
 
 - **`monthly_scan.yml`** — `0 13 * * *` (daily, 13:00 UTC / 09:00 ET). Runs every day, including weekends, by design (see ["Why the scan runs every day"](#why-the-scan-runs-every-day)).
 - **`daily_invest.yml`** — `35 13 * * 1-5` (weekdays, 13:35 UTC / 09:35 ET). Weekdays only, since it places live buy orders.
-- **`monthly_rebalance.yml`** (workflow "Quarterly Rebalance") — `0 14 22-26 3,6,9,12 *` (quarterly: days 22–26 of Mar/Jun/Sep/Dec, after S&P reconstitution). Trims overweight holdings back to target; a market-open guard skips weekend/holiday firings.
+- **`quarterly_rebalance.yml`** (workflow "Quarterly Rebalance") — `0 14 22-26 3,6,9,12 *` (quarterly: days 22–26 of Mar/Jun/Sep/Dec, after S&P reconstitution). Trims overweight holdings back to target; a market-open guard skips weekend/holiday firings.
 
 You can also trigger either workflow manually from the **Actions** tab (both have `workflow_dispatch`).
 

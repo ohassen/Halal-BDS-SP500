@@ -185,7 +185,7 @@ CREATE TABLE change_log (
 9. **Persist** updated `constituents` table and `change_log` entries.
 10. **Generate rolling report** (see Reporting section).
 
-**Quarterly weight rebalance** (`monthly_rebalance.py`, workflow "Quarterly Rebalance",
+**Quarterly weight rebalance** (`quarterly_rebalance.py`, workflow "Quarterly Rebalance",
 `0 14 22-26 3,6,9,12 *`): trims holdings that have drifted above target back down (sell-only,
 banded); freed cash redeploys via the daily job. Aligned to S&P reconstitution; a market-open
 guard skips closed-market firings. A market-cap-weighted book self-corrects price drift, so
@@ -312,7 +312,7 @@ Top of README must include:
 .github/workflows/
   monthly_scan.yml        # cron: '0 13 * * *'           (daily, 09:00 ET — Sharia monthly sweep, BDS quarterly)
   daily_invest.yml        # cron: '35 13 * * 1-5'        (weekdays, 09:35 ET — deploy cash)
-  monthly_rebalance.yml   # cron: '0 14 22-26 3,6,9,12 *' (quarterly — trim overweight; "Quarterly Rebalance")
+  quarterly_rebalance.yml # cron: '0 14 22-26 3,6,9,12 *' (quarterly — trim overweight)
   initial_buy.yml         # workflow_dispatch            (one-time seed)
   liquidate.yml           # workflow_dispatch            (guarded full liquidation)
 ```
