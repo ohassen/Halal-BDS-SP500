@@ -93,6 +93,7 @@ def run() -> None:
     init_db(DB_PATH)
     conn = sqlite3.connect(DB_PATH)
     alpaca = TradingClient(ALPACA_KEY, ALPACA_SECRET, paper=ALPACA_PAPER)
+    print(f"Trading mode: {'PAPER' if ALPACA_PAPER else 'LIVE'}")
 
     # Step 1: Check cash
     account = alpaca.get_account()

@@ -59,6 +59,7 @@ def run() -> None:
     init_db(DB_PATH)
     conn = sqlite3.connect(DB_PATH)
     alpaca = TradingClient(ALPACA_KEY, ALPACA_SECRET, paper=ALPACA_PAPER)
+    print(f"Trading mode: {'PAPER' if ALPACA_PAPER else 'LIVE'}")
 
     positions = alpaca.get_all_positions()
     if not positions:

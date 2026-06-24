@@ -90,6 +90,7 @@ def run() -> None:
     init_db(DB_PATH)
     conn = sqlite3.connect(DB_PATH)
     alpaca = TradingClient(ALPACA_KEY, ALPACA_SECRET, paper=ALPACA_PAPER)
+    print(f"Trading mode: {'PAPER' if ALPACA_PAPER else 'LIVE'}")
 
     # The quarterly window spans several days; only act on an open-market day so
     # weekend/holiday firings skip cleanly instead of submitting rejected orders.
