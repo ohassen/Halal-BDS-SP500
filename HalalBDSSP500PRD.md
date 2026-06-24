@@ -68,9 +68,11 @@ Endpoint: `GET https://halalscreener.app/api/v1/screen?symbol=TICKER`
 Header: `Authorization: Bearer {HALALSCREENER_API_KEY}`
 
 ### BDS Compliance
-Claude AI (training data only, no web search) — same pattern as HDT Cell 6 prompt but
-stripped down to BDS-only. Return field: `bds_friendly: YES | NO | UNKNOWN`. Cache
-results in SQLite; only re-check monthly for `UNKNOWN` or on new symbols.
+Claude Opus 4.8 **with web search**, one grounded request per symbol via the Anthropic
+Message Batches API (authoritative sources: bdsmovement.net campaigns, AFSC Investigate,
+reputable news). Stored as `bds_status: YES | NO | UNKNOWN` (YES = not targeted). Cache in
+SQLite + the committed CSV; re-screen once per calendar quarter (Mar/Jun/Sep/Dec) and screen
+new/unscreened symbols off-quarter. `UNKNOWN` is treated as compliant.
 
 ---
 
@@ -158,16 +160,19 @@ CREATE TABLE change_log (
 
 ## Monthly Workflow
 
-**Trigger:** GitHub Actions cron — 1st trading day of each month, pre-market (e.g. 08:00 ET).
+**Trigger:** GitHub Actions cron — **daily** (`0 13 * * *`, 09:00 ET). Sharia is screened as a monthly calendar sweep (≤99 names/day from the 1st until the ~1,000-name universe is covered, then dormant); BDS is re-screened once per quarter (Mar/Jun/Sep/Dec). The rebuild, force-sells, and CSV commit run every day.
 
 **Steps:**
 
 1. **Fetch S&P 500 symbols** via Wikipedia scrape.
 2. **Fetch market caps** for all S&P 500 + Russell 1000 symbols via yfinance `.info`.
-3. **Sharia check** all symbols not checked in the last 30 days via HalalScreener API
-   (rate-limit: ~0.5s between calls; ~600 symbols → ~5 min).
-4. **BDS check** all symbols with stale or missing BDS cache (Claude AI, training data only;
-   batch prompt acceptable — check 10 symbols per call to reduce cost).
+3. **Sharia check** — monthly calendar sweep: re-check every symbol not yet screened this
+   calendar month via HalalScreener (≤`SHARIA_DAILY_CAP` (99)/day, ~6s between calls), ~10
+   days to cover the ~1,000-name universe, then dormant until the next 1st.
+4. **BDS check** — once per calendar quarter (Mar/Jun/Sep/Dec), classify every symbol via
+   Claude Opus 4.8 **with web search**, one grounded request per symbol through the Anthropic
+   Message Batches API; off-quarter runs only screen new/unscreened names and carry the rest
+   forward. `UNKNOWN` is treated as compliant.
 5. **Apply state machine** to every symbol:
    - sharia F or bds=NO → REMOVED (sell if held)
    - sharia D → WARNED (hold, flag)
@@ -179,6 +184,12 @@ CREATE TABLE change_log (
 8. **Execute forced sells** for REMOVED symbols via Alpaca market sell orders.
 9. **Persist** updated `constituents` table and `change_log` entries.
 10. **Generate rolling report** (see Reporting section).
+
+**Quarterly weight rebalance** (`monthly_rebalance.py`, workflow "Quarterly Rebalance",
+`0 14 22-26 3,6,9,12 *`): trims holdings that have drifted above target back down (sell-only,
+banded); freed cash redeploys via the daily job. Aligned to S&P reconstitution; a market-open
+guard skips closed-market firings. A market-cap-weighted book self-corrects price drift, so
+weights only need a retrim when targets change — at reconstitution and compliance removals.
 
 ---
 
@@ -299,8 +310,11 @@ Top of README must include:
 
 ```
 .github/workflows/
-  monthly_scan.yml      # cron: '0 13 1-7 * 1'  (first Monday of month, 09:00 ET)
-  daily_invest.yml      # cron: '0 13 * * 1-5'  (09:00 ET weekdays)
+  monthly_scan.yml        # cron: '0 13 * * *'           (daily, 09:00 ET — Sharia monthly sweep, BDS quarterly)
+  daily_invest.yml        # cron: '35 13 * * 1-5'        (weekdays, 09:35 ET — deploy cash)
+  monthly_rebalance.yml   # cron: '0 14 22-26 3,6,9,12 *' (quarterly — trim overweight; "Quarterly Rebalance")
+  initial_buy.yml         # workflow_dispatch            (one-time seed)
+  liquidate.yml           # workflow_dispatch            (guarded full liquidation)
 ```
 
 **Secrets needed** (separate from HDT):

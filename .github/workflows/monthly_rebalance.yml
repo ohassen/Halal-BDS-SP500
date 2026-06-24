@@ -1,11 +1,13 @@
-name: Monthly Rebalance
+name: Quarterly Rebalance
 
 on:
   schedule:
-    # 1st of each month at 14:00 UTC. If the 1st is a weekend/holiday, Alpaca
-    # rejects the closed-market orders for that run; trigger manually or wait for
-    # the next month. Trims are sell-only; freed cash redeploys via the daily job.
-    - cron: '0 14 1 * *'
+    # Quarterly, aligned to S&P reconstitution (3rd Friday of Mar/Jun/Sep/Dec).
+    # Fires on days 22-26 of those months at 14:00 UTC — after reconstitution has
+    # propagated. The window guarantees an open-market day; the script's market-open
+    # guard skips weekend/holiday firings, the first open day does the trim, and
+    # later days are no-ops (sell-only band; the daily job only buys underweight names).
+    - cron: '0 14 22-26 3,6,9,12 *'
   workflow_dispatch:
 
 permissions:

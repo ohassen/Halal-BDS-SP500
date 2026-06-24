@@ -1,5 +1,5 @@
 """
-Monthly weight rebalance for Halal-BDS-SP500.
+Quarterly weight rebalance for Halal-BDS-SP500.
 
 Trims holdings that have drifted materially ABOVE their index target weight,
 selling each back down to target. Freed cash is redeployed into underweight
@@ -18,7 +18,14 @@ Targets come from the git-committed index/constituents.csv (ACTIVE + WARNED, the
 full index membership). Holdings that are no longer index members (target absent)
 are left alone — monthly_scan handles compliance/index-exit force-sells.
 
-Runs monthly via schedule (1st of month) or manually via workflow_dispatch.
+Cadence: quarterly, aligned to S&P reconstitution (3rd Friday of Mar/Jun/Sep/Dec).
+A market-cap-weighted book self-corrects price drift, so weights only need a retrim
+when targets actually change — at reconstitution and compliance removals. The
+workflow fires on days 22-26 of those months (after reconstitution propagates); a
+market-open guard skips weekend/holiday firings, the first open day does the trim,
+and later days in the window are no-ops (sell-only band; the daily job only buys
+underweight names, so it can't re-breach the upper band). Also runs on demand via
+workflow_dispatch.
 """
 
 import csv
@@ -83,6 +90,14 @@ def run() -> None:
     init_db(DB_PATH)
     conn = sqlite3.connect(DB_PATH)
     alpaca = TradingClient(ALPACA_KEY, ALPACA_SECRET, paper=ALPACA_PAPER)
+
+    # The quarterly window spans several days; only act on an open-market day so
+    # weekend/holiday firings skip cleanly instead of submitting rejected orders.
+    if not alpaca.get_clock().is_open:
+        print("Market is closed — skipping this run; the next open day in the "
+              "quarterly window will rebalance.")
+        conn.close()
+        return
 
     targets = load_index_targets()
     if not targets:
@@ -158,7 +173,7 @@ def run() -> None:
     write_header = not os.path.exists(REBALANCE_MD)
     with open(REBALANCE_MD, "a") as f:
         if write_header:
-            f.write("# Monthly Rebalance Log (private — not committed)\n\n")
+            f.write("# Quarterly Rebalance Log (private — not committed)\n\n")
             f.write("| Date | Trims | Proceeds |\n")
             f.write("|------|-------|----------|\n")
         f.write(f"| {TODAY} | {len(trims)} | ${total:.2f} |\n")

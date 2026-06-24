@@ -2,12 +2,13 @@ name: Monthly Constituent Scan
 
 on:
   schedule:
-    # Every day at 13:00 UTC (09:00 ET), including weekends. The scan is gated by the
-    # HalalScreener free-tier daily API cap, not by market hours: it refreshes up to ~95
-    # stale symbols per run, exits early on partial-sharia-check days, and only runs the
-    # full rebuild once all stale symbols have been refreshed. Running on weekends adds two
-    # extra refresh days per week so the rolling re-check completes sooner. Any force-sell
-    # orders submitted while the market is closed simply queue for the next session.
+    # Every day at 13:00 UTC (09:00 ET), including weekends. Sharia is screened as a
+    # monthly calendar sweep gated by the HalalScreener free-tier daily cap: from the 1st
+    # it refreshes up to ~99 names/run until the ~1,000-name universe is covered (~10 days),
+    # then stays dormant until the next 1st. BDS re-screens once per quarter. The rebuild,
+    # force-sells, and CSV commit run every day (a cold-start guard defers the rebuild only
+    # on an empty database). Force-sell orders placed while the market is closed queue for
+    # the next session.
     - cron: '0 13 * * *'
   workflow_dispatch:
 

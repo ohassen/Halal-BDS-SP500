@@ -5,7 +5,7 @@ Steps:
   1. Fetch S&P 500 symbols from Wikipedia
   2. Fetch Russell 1000 symbols → build replacement pool (R1000 - SP500)
   3. Fetch market caps via yfinance
-  4. Sharia compliance check via HalalScreener API (skip if checked < 30 days ago)
+  4. Sharia compliance check via HalalScreener API (monthly calendar sweep, ≤99/day)
   5. BDS compliance check via Claude Opus + web search (Message Batches API, ~quarterly)
   6. Apply state machine → ACTIVE / WARNED / REMOVED
   7. Build 500-name list (backfill from R1000 replacement pool if needed)
@@ -59,16 +59,16 @@ GRADE_RANK = {
 
 MAX_INDEX_SIZE = 500
 SHARIA_RATE_LIMIT_S = 6.0   # 10 requests/minute free tier limit
-SHARIA_DAILY_CAP = 95       # stay comfortably under 100/day free tier limit
+SHARIA_DAILY_CAP = 99       # one under the ~100/day HalalScreener free-tier limit
 SHARIA_MAX_RETRIES = 3
-STALE_DAYS = 30
 
 # BDS screening: web-search-grounded classification via the Message Batches API,
-# refreshed roughly quarterly. The scan runs daily, so a committed marker file
-# (BDS_STATE_FILE) gates the expensive full refresh to once every BDS_REFRESH_DAYS;
-# off-cycle runs only screen brand-new symbols and carry the rest forward.
+# refreshed once per calendar quarter (aligned to S&P reconstitution: Mar/Jun/Sep/Dec).
+# The scan runs daily, so a committed marker file (BDS_STATE_FILE) records the last
+# refresh; the screen only re-runs in a quarter-end month it hasn't already covered.
+# Off-cycle runs only screen brand-new symbols and carry the rest forward.
 BDS_MODEL = "claude-opus-4-8"
-BDS_REFRESH_DAYS = 90
+BDS_REFRESH_MONTHS = {3, 6, 9, 12}
 BDS_BATCH_POLL_S = 30
 BDS_BATCH_MAX_WAIT = 3 * 60 * 60  # seconds to wait for the batch before carrying forward
 BDS_STATE_FILE = "index/bds_state.json"
@@ -307,13 +307,24 @@ def load_constituents(conn: sqlite3.Connection) -> dict[str, dict]:
     return {r[0]: dict(zip(cols, r)) for r in rows}
 
 
-def is_stale(last_checked: str | None) -> bool:
+def needs_sharia_check(last_checked: str | None) -> bool:
+    """True if this symbol hasn't been Sharia-screened yet this calendar month.
+
+    Drives the monthly sweep: on the 1st everything is due; once a name is
+    re-checked its timestamp moves into the current month and it stops being due,
+    so the screen goes dormant until the next 1st.
+    """
     if not last_checked:
         return True
     try:
-        return (date.today() - date.fromisoformat(last_checked)).days >= STALE_DAYS
+        return date.fromisoformat(last_checked) < date.today().replace(day=1)
     except ValueError:
         return True
+
+
+def _quarter(d: date) -> tuple[int, int]:
+    """(year, quarter-index 0-3) — gates the BDS screen to once per calendar quarter."""
+    return (d.year, (d.month - 1) // 3)
 
 
 # ---------------------------------------------------------------------------
@@ -413,25 +424,29 @@ def run() -> None:
     existing = load_constituents(conn)
     sharia_results: dict[str, tuple[str, str]] = {}
 
-    # Separate stale symbols (need API call) from fresh ones (use cache)
-    # Priority: never-checked first, then sorted by last_checked ascending (most stale first)
-    stale_syms = []
+    # Sharia is screened as a monthly calendar sweep: on the 1st of each month the
+    # whole universe is due; we re-check up to SHARIA_DAILY_CAP/day (free-tier limit)
+    # over the following ~10 days, then go dormant until the next 1st.
+    # Priority: never-checked first, then oldest last_checked first.
+    due_syms = []
     for sym in all_syms:
         row = existing.get(sym)
         last_checked = row["last_checked"] if row else None
-        if is_stale(last_checked):
-            stale_syms.append((last_checked or "", sym))
+        if needs_sharia_check(last_checked):
+            due_syms.append((last_checked or "", sym))
         else:
             sharia_results[sym] = (row["sharia_grade"], "cached")
 
-    stale_syms.sort()  # None/"" sorts first → never-checked get priority
-    to_check = [sym for _, sym in stale_syms[:SHARIA_DAILY_CAP]]
-    skipped = [sym for _, sym in stale_syms[SHARIA_DAILY_CAP:]]
+    due_syms.sort()  # None/"" sorts first → never-checked get priority
+    to_check = [sym for _, sym in due_syms[:SHARIA_DAILY_CAP]]
+    deferred = [sym for _, sym in due_syms[SHARIA_DAILY_CAP:]]
 
-    print(f"  {len(sharia_results)} cached, {len(to_check)} to check, {len(skipped)} deferred (daily cap)")
+    print(f"  {len(sharia_results)} fresh this month, {len(to_check)} to check, "
+          f"{len(deferred)} deferred to a later run")
 
-    # Use existing grade for deferred symbols; UNKNOWN if no grade on record
-    for sym in skipped:
+    # Carry forward the existing grade for deferred symbols (still valid until their
+    # monthly slot comes up); UNKNOWN only if there is no grade on record at all.
+    for sym in deferred:
         row = existing.get(sym)
         sharia_results[sym] = (row["sharia_grade"] if row else "UNKNOWN", "deferred")
 
@@ -444,7 +459,7 @@ def run() -> None:
 
     print(f"  Checked/cached {len(sharia_results)} symbols")
 
-    # Persist freshly-checked grades immediately so tomorrow's run skips them
+    # Persist freshly-checked grades immediately so later runs skip them this month
     for sym, (grade, source) in sharia_results.items():
         if source not in ("cached", "deferred"):
             conn.execute(
@@ -457,12 +472,22 @@ def run() -> None:
             )
     conn.commit()
 
-    if skipped:
-        _write_sharia_progress(conn, len(to_check), len(skipped))
+    # Cold-start guard: defer the full rebuild ONLY while some name has never been
+    # graded at all (empty DB / cache loss / brand-new ticker). In steady state every
+    # name carries a prior grade, so the rebuild + force-sells + BDS + CSV commit run
+    # daily even mid-sweep, using cached grades for names not yet re-checked this month.
+    checked_now = set(to_check)
+    ungraded_remaining = [
+        sym for sym in all_syms
+        if not (existing.get(sym) or {}).get("last_checked") and sym not in checked_now
+    ]
+    if ungraded_remaining:
+        _write_sharia_progress(conn, len(to_check), len(ungraded_remaining))
         conn.close()
         print(
-            f"Partial run: {len(to_check)} symbols checked today, "
-            f"{len(skipped)} still stale. Re-running tomorrow."
+            f"Cold start: {len(to_check)} graded this run, {len(ungraded_remaining)} "
+            "still ungraded. Deferring rebuild until the universe has baseline grades; "
+            "re-running next scan."
         )
         return
 
@@ -477,7 +502,10 @@ def run() -> None:
             bds_results[sym] = cached
 
     last_refresh = _bds_last_refresh()
-    due = last_refresh is None or (date.today() - last_refresh).days >= BDS_REFRESH_DAYS
+    due = last_refresh is None or (
+        date.today().month in BDS_REFRESH_MONTHS
+        and _quarter(last_refresh) != _quarter(date.today())
+    )
 
     if due:
         targets = {s: sp500.get(s, s) for s in all_syms}
@@ -485,9 +513,8 @@ def run() -> None:
               f"web-checking {len(targets)} symbol(s) via {BDS_MODEL} batch")
     else:
         targets = {s: sp500.get(s, s) for s in all_syms if not bds_results.get(s)}
-        next_due = (last_refresh + timedelta(days=BDS_REFRESH_DAYS)).isoformat()
-        print(f"  BDS refresh not due until ~{next_due}; web-checking "
-              f"{len(targets)} new/unscreened symbol(s), carrying forward the rest")
+        print(f"  BDS refresh not due this run (last refresh: {last_refresh}); "
+              f"web-checking {len(targets)} new/unscreened symbol(s), carrying forward the rest")
 
     if targets and not ANTHROPIC_API_KEY:
         print("  WARNING: ANTHROPIC_API_KEY not set — skipping web BDS check, "
