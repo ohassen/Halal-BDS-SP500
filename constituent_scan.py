@@ -1,5 +1,5 @@
 """
-Monthly constituent scan for Halal-BDS-SP500.
+Constituent scan for Halal-BDS-SP500.
 
 Steps:
   1. Fetch S&P 500 symbols from Wikipedia
@@ -741,7 +741,7 @@ def run() -> None:
 
     _write_change_log(conn)
     conn.close()
-    print("Monthly scan complete.")
+    print("Constituent scan complete.")
 
 
 def _append_event_log(event_rows: list[tuple]) -> None:
@@ -782,7 +782,7 @@ def _write_change_log(conn: sqlite3.Connection) -> None:
 
     # Build new section
     lines = [
-        f"## {TODAY} (Monthly Scan)",
+        f"## {TODAY} (Constituent Scan)",
     ]
     if added:
         lines += [f"\n### Added ({len(added)})", "| Symbol | Old Grade | New Grade | BDS |", "|--------|-----------|-----------|-----|"]

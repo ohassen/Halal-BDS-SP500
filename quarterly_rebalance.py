@@ -16,7 +16,7 @@ on noise. Trims worth less than MIN_SELL_NOTIONAL are skipped to avoid dust.
 
 Targets come from the git-committed index/constituents.csv (ACTIVE + WARNED, the
 full index membership). Holdings that are no longer index members (target absent)
-are left alone — monthly_scan handles compliance/index-exit force-sells.
+are left alone — constituent_scan handles compliance/index-exit force-sells.
 
 Cadence: quarterly, aligned to S&P reconstitution (3rd Friday of Mar/Jun/Sep/Dec).
 A market-cap-weighted book self-corrects price drift, so weights only need a retrim
@@ -101,7 +101,7 @@ def run() -> None:
 
     targets = load_index_targets()
     if not targets:
-        print(f"No index targets in {INDEX_CSV}. Run monthly_scan.py first.")
+        print(f"No index targets in {INDEX_CSV}. Run constituent_scan.py first.")
         conn.close()
         return
 
@@ -121,7 +121,7 @@ def run() -> None:
     for sym, mv in pos_map.items():
         target = targets.get(sym)
         if target is None:
-            # Not an index member; leave compliance/index exits to monthly_scan.
+            # Not an index member; leave compliance/index exits to constituent_scan.
             continue
         actual = mv / total_portfolio
         overshoot = actual - target

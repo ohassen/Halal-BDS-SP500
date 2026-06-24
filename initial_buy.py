@@ -122,7 +122,7 @@ def run() -> None:
     # Load target weights (prefer committed CSV over cached DB)
     target_weights = load_target_weights(conn)
     if not target_weights:
-        print("No ACTIVE constituents in CSV or DB. Run monthly_scan.py first.")
+        print("No ACTIVE constituents in CSV or DB. Run constituent_scan.py first.")
         conn.close()
         return
 

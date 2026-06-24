@@ -8,7 +8,7 @@ A self-managed **direct index** that replicates the S&P 500 with Shariah complia
 
 ## How it works
 
-**Constituent scan** (`monthly_scan.py`, runs daily at 09:00 ET — see note below): rebuilds a **strict 500-name list** from the S&P 500 (backfilled from the Russell 1000 when names are excluded), re-checks Sharia grades (monthly sweep) and BDS status (quarterly), force-sells any removed holdings, recomputes market-cap target weights, archives a monthly weights snapshot, appends any membership/status/grade/BDS changes to a permanent event log, and commits the updated public artifacts.
+**Constituent scan** (`constituent_scan.py`, runs daily at 09:00 ET — see note below): rebuilds a **strict 500-name list** from the S&P 500 (backfilled from the Russell 1000 when names are excluded), re-checks Sharia grades (monthly sweep) and BDS status (quarterly), force-sells any removed holdings, recomputes market-cap target weights, archives a monthly weights snapshot, appends any membership/status/grade/BDS changes to a permanent event log, and commits the updated public artifacts.
 
 The list is held to exactly 500 names. Held S&P 500 members count toward the 500 — both `ACTIVE` (buy-eligible) and `WARNED` (grade D; held, no new buys) — and remaining slots are backfilled from the largest ACTIVE Russell 1000 names. Target weights are computed across exactly these 500 and sum to 100%.
 
@@ -60,7 +60,7 @@ Create accounts and gather API keys for each service:
 ### 2. Fork and configure the repository
 
 1. **Fork** this repo to your own GitHub account (or use it as a template).
-2. Update the bot `User-Agent` string in `monthly_scan.py` (`WIKI_HEADERS`) to point at your fork — it identifies your scraper to Wikipedia.
+2. Update the bot `User-Agent` string in `constituent_scan.py` (`WIKI_HEADERS`) to point at your fork — it identifies your scraper to Wikipedia.
 3. Enable GitHub Actions on the fork (Actions are disabled by default on forks: **Actions → "I understand my workflows, go ahead and enable them"**).
 
 ### 3. Add secrets and variables
@@ -82,13 +82,13 @@ In your fork, go to **Settings → Secrets and variables → Actions** and add:
 |---|---|---|
 | `ALPACA_PAPER` | `true` | Set to `false` only when you are ready to trade real money. |
 
-> The workflows have `permissions: contents: write` so the monthly scan can commit updated artifacts back to the repo. No further token setup is required — the default `GITHUB_TOKEN` is used.
+> The workflows have `permissions: contents: write` so the constituent scan can commit updated artifacts back to the repo. No further token setup is required — the default `GITHUB_TOKEN` is used.
 
 ### 4. Workflow schedules
 
 Schedules live in `.github/workflows/`. Adjust the cron expressions for your timezone if needed (crons are in **UTC**):
 
-- **`monthly_scan.yml`** — `0 13 * * *` (daily, 13:00 UTC / 09:00 ET). Runs every day, including weekends, by design (see ["Why the scan runs every day"](#why-the-scan-runs-every-day)).
+- **`constituent_scan.yml`** — `0 13 * * *` (daily, 13:00 UTC / 09:00 ET). Runs every day, including weekends, by design (see ["Why the scan runs every day"](#why-the-scan-runs-every-day)).
 - **`daily_invest.yml`** — `35 13 * * 1-5` (weekdays, 13:35 UTC / 09:35 ET). Weekdays only, since it places live buy orders.
 - **`quarterly_rebalance.yml`** (workflow "Quarterly Rebalance") — `0 14 22-26 3,6,9,12 *` (quarterly: days 22–26 of Mar/Jun/Sep/Dec, after S&P reconstitution). Trims overweight holdings back to target; a market-open guard skips weekend/holiday firings.
 
@@ -96,7 +96,7 @@ You can also trigger either workflow manually from the **Actions** tab (both hav
 
 ### 5. First run / bootstrapping
 
-1. From the **Actions** tab, manually run **Monthly Constituent Scan**. Because the database starts empty, the Sharia re-check will span several daily runs (~99 symbols/day → ~10 days for the full ~1,000-name universe). Track progress in `reports/sharia_progress.md`.
+1. From the **Actions** tab, manually run **Constituent Scan**. Because the database starts empty, the Sharia re-check will span several daily runs (~99 symbols/day → ~10 days for the full ~1,000-name universe). Track progress in `reports/sharia_progress.md`.
 2. Once the first full rebuild completes, `index/constituents.csv` is populated with ACTIVE constituents and target weights.
 3. The **Daily Investment** workflow then deploys cash into the most underweight ACTIVE names on its next weekday run.
 
@@ -115,7 +115,7 @@ export ANTHROPIC_API_KEY=...
 export ALPACA_PAPER=true        # keep paper trading while testing
 
 python init_db.py        # create index_fund.db (also auto-created by the scripts)
-python monthly_scan.py   # rebuild constituents / refresh compliance
+python constituent_scan.py   # rebuild constituents / refresh compliance
 python daily_invest.py   # deploy available cash
 ```
 
@@ -127,11 +127,11 @@ Key constants you may want to adjust live near the top of the scripts:
 
 | Constant | File | Default | Meaning |
 |---|---|---|---|
-| `MAX_INDEX_SIZE` | `monthly_scan.py` | `500` | Target number of constituents |
-| `SHARIA_DAILY_CAP` | `monthly_scan.py` | `99` | Max Sharia API calls per run (keep under your tier's daily limit) |
-| `SHARIA_RATE_LIMIT_S` | `monthly_scan.py` | `6.0` | Seconds between Sharia API calls (10/min) |
-| `BDS_REFRESH_MONTHS` | `monthly_scan.py` | `{3,6,9,12}` | Calendar months the quarterly BDS web-search re-screen runs (Sharia re-screens monthly via a calendar sweep — no constant) |
-| `BDS_BATCH_SIZE` | `monthly_scan.py` | `10` | Symbols per LLM BDS classification call |
+| `MAX_INDEX_SIZE` | `constituent_scan.py` | `500` | Target number of constituents |
+| `SHARIA_DAILY_CAP` | `constituent_scan.py` | `99` | Max Sharia API calls per run (keep under your tier's daily limit) |
+| `SHARIA_RATE_LIMIT_S` | `constituent_scan.py` | `6.0` | Seconds between Sharia API calls (10/min) |
+| `BDS_REFRESH_MONTHS` | `constituent_scan.py` | `{3,6,9,12}` | Calendar months the quarterly BDS web-search re-screen runs (Sharia re-screens monthly via a calendar sweep — no constant) |
+| `BDS_BATCH_SIZE` | `constituent_scan.py` | `10` | Symbols per LLM BDS classification call |
 | `MIN_CASH` | `daily_invest.py` | `20.0` | Skip the daily buy if account cash is below this |
 | `MIN_NOTIONAL` | `daily_invest.py` | `1.0` | Minimum dollar amount per order |
 | `TOP_N_GAPS` | `daily_invest.py` | `20` | How many of the most-underweight names to buy each day |
@@ -141,9 +141,9 @@ Key constants you may want to adjust live near the top of the scripts:
 ```
 .
 ├── .github/workflows/
-│   ├── monthly_scan.yml     # daily scan / rebuild workflow
+│   ├── constituent_scan.yml # daily scan / rebuild workflow
 │   └── daily_invest.yml     # weekday cash-deploy workflow
-├── monthly_scan.py          # constituent rebuild + compliance checks
+├── constituent_scan.py      # constituent rebuild + compliance checks
 ├── daily_invest.py          # underweight-gap cash deployment
 ├── init_db.py               # SQLite schema bootstrap
 ├── requirements.txt         # Python dependencies

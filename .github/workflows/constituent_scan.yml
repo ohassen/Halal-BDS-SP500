@@ -1,4 +1,4 @@
-name: Monthly Constituent Scan
+name: Constituent Scan
 
 on:
   schedule:
@@ -40,14 +40,14 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Run monthly scan
+      - name: Run constituent scan
         env:
           ALPACA_INDEX_API_KEY: ${{ secrets.ALPACA_INDEX_API_KEY }}
           ALPACA_INDEX_API_SECRET: ${{ secrets.ALPACA_INDEX_API_SECRET }}
           HALALSCREENER_API_KEY: ${{ secrets.HALALSCREENER_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           ALPACA_PAPER: ${{ vars.ALPACA_PAPER || 'true' }}
-        run: python monthly_scan.py
+        run: python constituent_scan.py
 
       - name: Commit public artifacts
         run: |
