@@ -53,6 +53,15 @@ def init_db(db_path: str = "index_fund.db") -> None:
             bds_status  TEXT,
             reason      TEXT
         );
+
+        -- Permanent BDS blacklist: once a company is confirmed targeted (BDS == NO) it
+        -- stays excluded forever and is never re-screened. The committed
+        -- index/bds_blacklist.json is the durable source of truth; this table mirrors it.
+        CREATE TABLE IF NOT EXISTS bds_blacklist (
+            symbol       TEXT PRIMARY KEY,
+            company      TEXT,
+            date_flagged TEXT
+        );
     """)
 
     conn.commit()

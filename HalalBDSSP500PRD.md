@@ -74,6 +74,19 @@ reputable news). Stored as `bds_status: YES | NO | UNKNOWN` (YES = not targeted)
 SQLite + the committed CSV; re-screen once per calendar quarter (Mar/Jun/Sep/Dec) and screen
 new/unscreened symbols off-quarter. `UNKNOWN` is treated as compliant.
 
+**Scoped to ~500.** The quarterly screen does not re-check the full ~1,000-name universe. It
+re-checks the S&P 500 (minus permanent failures) plus only enough Russell 1000 backfill
+candidates — highest market cap first — to fill slots vacated by excluded names, with a small
+`BDS_BACKFILL_BUFFER` over-screen. Lower-cap pool names that cannot reach the 500 are never
+screened, keeping cost near ~500 grounded requests per quarter.
+
+**Permanent blacklist.** A confirmed target (`bds_status = NO`) is blacklisted forever:
+recorded in the committed `index/bds_blacklist.json` (durable source of truth, mirrored in the
+`bds_blacklist` DB table), never re-screened, and never re-admitted to the index even if a
+later check would clear it. So each quarter screens last quarter's passers plus new names, and
+skips known violators. The committed file survives Actions cache loss; on reload it repopulates
+the DB mirror.
+
 ---
 
 ## Compliance State Machine
@@ -154,6 +167,14 @@ CREATE TABLE change_log (
     bds_status     TEXT,
     reason         TEXT
 );
+
+-- Permanent BDS blacklist (mirror of the committed index/bds_blacklist.json).
+-- A confirmed target lands here once and is never re-screened or re-admitted.
+CREATE TABLE bds_blacklist (
+    symbol       TEXT PRIMARY KEY,
+    company      TEXT,
+    date_flagged TEXT
+);
 ```
 
 ---
@@ -169,10 +190,13 @@ CREATE TABLE change_log (
 3. **Sharia check** — monthly calendar sweep: re-check every symbol not yet screened this
    calendar month via HalalScreener (≤`SHARIA_DAILY_CAP` (99)/day, ~6s between calls), ~10
    days to cover the ~1,000-name universe, then dormant until the next 1st.
-4. **BDS check** — once per calendar quarter (Mar/Jun/Sep/Dec), classify every symbol via
-   Claude Opus 4.8 **with web search**, one grounded request per symbol through the Anthropic
-   Message Batches API; off-quarter runs only screen new/unscreened names and carry the rest
-   forward. `UNKNOWN` is treated as compliant.
+4. **BDS check** — once per calendar quarter (Mar/Jun/Sep/Dec), classify via Claude Opus 4.8
+   **with web search**, one grounded request per symbol through the Anthropic Message Batches
+   API. Scoped to ~500: re-screen the S&P 500 (minus permanent failures), then backfill-screen
+   only enough top-market-cap Russell 1000 candidates to fill the shortfall (Phase A → size
+   provisional index → Phase B). Confirmed targets (`NO`) are added to the permanent
+   `index/bds_blacklist.json` and never re-screened or re-admitted. Off-quarter runs only screen
+   new index names with no verdict and carry the rest forward. `UNKNOWN` is treated as compliant.
 5. **Apply state machine** to every symbol:
    - sharia F or bds=NO → REMOVED (sell if held)
    - sharia D → WARNED (hold, flag)
@@ -235,6 +259,7 @@ account balances and transaction dollar amounts are private.
 | Artifact | Committed to repo (public) |
 |---|---|
 | `index/constituents.csv` | ✅ — symbol, company, grade, BDS status, target weight % |
+| `index/bds_blacklist.json` | ✅ — permanent list of confirmed BDS targets (symbol, company, date) |
 | `reports/change_log.md` | ✅ — additions, removals, warnings (no dollar amounts) |
 | `index_fund.db` | ❌ — contains transactions table with cash amounts; gitignored |
 | `reports/daily_buys.md` | ❌ — reveals account size; gitignored |
@@ -349,7 +374,9 @@ cache or artifact instead (decide in implementation).
 - **No dip scanning** — buy the index every day regardless of price movement
 - **No AI research per trade** — AI only used for BDS classification (monthly, cached)
 - **No Telegram** — `.md` file reports committed to repo
-- **No blacklist / 30-day exclusion** — index fund always holds its 500 names
+- **No *trading* blacklist / 30-day dip exclusion** — the index always holds its 500 names
+  (distinct from the permanent **BDS** blacklist, which excludes confirmed campaign targets
+  forever)
 
 ---
 

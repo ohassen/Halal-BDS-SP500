@@ -56,6 +56,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           [ -f index/constituents.csv ] && git add index/constituents.csv || true
           [ -f index/bds_state.json ] && git add index/bds_state.json || true
+          [ -f index/bds_blacklist.json ] && git add index/bds_blacklist.json || true
           [ -d index/snapshots ] && git add index/snapshots || true
           [ -f reports/change_log.md ] && git add reports/change_log.md || true
           [ -f reports/event_log.csv ] && git add reports/event_log.csv || true

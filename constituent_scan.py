@@ -6,7 +6,9 @@ Steps:
   2. Fetch Russell 1000 symbols → build replacement pool (R1000 - SP500)
   3. Fetch market caps via yfinance
   4. Sharia compliance check via HalalScreener API (monthly calendar sweep, ≤99/day)
-  5. BDS compliance check via Claude Opus + web search (Message Batches API, ~quarterly)
+  5. BDS compliance check via Claude Opus + web search (Message Batches API, ~quarterly),
+     scoped to the ~500 index names (S&P 500 + on-demand backfill); confirmed targets are
+     blacklisted permanently and never re-screened
   6. Apply state machine → ACTIVE / WARNED / REMOVED
   7. Build 500-name list (backfill from R1000 replacement pool if needed)
   8. Compute market-cap target weights
@@ -72,6 +74,15 @@ BDS_REFRESH_MONTHS = {3, 6, 9, 12}
 BDS_BATCH_POLL_S = 30
 BDS_BATCH_MAX_WAIT = 3 * 60 * 60  # seconds to wait for the batch before carrying forward
 BDS_STATE_FILE = "index/bds_state.json"
+# A confirmed BDS target (verdict NO) is blacklisted permanently — never re-screened, never
+# re-admitted. The committed JSON file is the durable source of truth (survives Actions cache
+# loss); the bds_blacklist DB table mirrors it.
+BDS_BLACKLIST_FILE = "index/bds_blacklist.json"
+# Quarterly screening is scoped to roughly the 500 index names: the S&P 500 plus only enough
+# Russell 1000 backfill candidates to fill vacated slots, screened highest-market-cap first.
+# The buffer over-screens slightly so names that come back targeted don't leave the index short.
+BDS_BACKFILL_BUFFER = 25
+BDS_BACKFILL_MAX_ROUNDS = 3
 BDS_SYSTEM = (
     "You are a compliance analyst determining whether a publicly traded company is a "
     "current, explicit target of the BDS (Boycott, Divestment, Sanctions) movement "
@@ -296,6 +307,57 @@ def _write_bds_refresh(d: date) -> None:
         json.dump({"last_refresh": d.isoformat()}, f)
 
 
+def load_bds_blacklist(conn: sqlite3.Connection) -> set[str]:
+    """Return the set of permanently-blacklisted symbols (confirmed BDS targets).
+
+    The committed index/bds_blacklist.json is the durable source of truth — it survives
+    GitHub Actions cache loss, unlike the DB. On load we fold any file entries the DB is
+    missing back into the bds_blacklist table, then return the union of symbols.
+    """
+    if os.path.exists(BDS_BLACKLIST_FILE):
+        try:
+            with open(BDS_BLACKLIST_FILE) as f:
+                entries = json.load(f)
+        except (json.JSONDecodeError, ValueError):
+            entries = []
+        for e in entries:
+            sym = e.get("symbol") if isinstance(e, dict) else None
+            if sym:
+                conn.execute(
+                    "INSERT OR IGNORE INTO bds_blacklist (symbol, company, date_flagged) "
+                    "VALUES (?, ?, ?)",
+                    (sym, e.get("company") or sym, e.get("date") or TODAY),
+                )
+        conn.commit()
+    rows = conn.execute("SELECT symbol FROM bds_blacklist").fetchall()
+    return {r[0] for r in rows}
+
+
+def save_bds_blacklist(conn: sqlite3.Connection, entries: list[tuple[str, str]]) -> None:
+    """Persist blacklisted (symbol, company) pairs to the DB and rewrite the committed file.
+
+    Idempotent: existing symbols keep their original date_flagged (INSERT OR IGNORE); only
+    genuinely new targets get today's date. The JSON file is rewritten from the full table so
+    the durable file and the DB mirror never drift apart.
+    """
+    for sym, company in entries:
+        conn.execute(
+            "INSERT OR IGNORE INTO bds_blacklist (symbol, company, date_flagged) "
+            "VALUES (?, ?, ?)",
+            (sym, company or sym, TODAY),
+        )
+    conn.commit()
+    rows = conn.execute(
+        "SELECT symbol, company, date_flagged FROM bds_blacklist ORDER BY symbol"
+    ).fetchall()
+    os.makedirs(os.path.dirname(BDS_BLACKLIST_FILE), exist_ok=True)
+    with open(BDS_BLACKLIST_FILE, "w") as f:
+        json.dump(
+            [{"symbol": r[0], "company": r[1], "date": r[2]} for r in rows],
+            f, indent=2,
+        )
+
+
 # ---------------------------------------------------------------------------
 # Database helpers
 # ---------------------------------------------------------------------------
@@ -330,6 +392,17 @@ def _quarter(d: date) -> tuple[int, int]:
 # ---------------------------------------------------------------------------
 # State machine
 # ---------------------------------------------------------------------------
+
+def _grade_allows_active(grade: str) -> bool:
+    """True if the Sharia grade alone permits ACTIVE (mirrors classify_symbol's ACTIVE
+    branches): grade >= B-, or an unknown grade. D / C-tier -> WARNED; F -> REMOVED.
+
+    Used to pre-filter Russell 1000 backfill candidates before BDS screening, so we only
+    spend web-search calls on names that could actually enter the index.
+    """
+    r = GRADE_RANK.get(grade)
+    return r is None or r >= GRADE_RANK["B-"]
+
 
 def classify_symbol(sharia_grade: str, bds_status: str) -> tuple[str, str | None]:
     """
@@ -491,9 +564,9 @@ def run() -> None:
         )
         return
 
-    print("=== Step 5: BDS compliance check ===")
-    # Seed from cache (committed CSV first — survives Actions cache loss — then DB)
-    # so symbols not re-checked this run carry forward their last verdict.
+    print("=== Step 5: BDS compliance check (scoped to index needs) ===")
+    # Seed from cache (committed CSV first — survives Actions cache loss — then DB) so
+    # symbols not re-checked this run carry forward their last verdict.
     bds_results: dict[str, str] = {}
     csv_bds = load_bds_from_csv()
     for sym in all_syms:
@@ -501,31 +574,110 @@ def run() -> None:
         if cached:
             bds_results[sym] = cached
 
+    # Permanent blacklist: any company ever confirmed targeted (BDS == NO) is excluded
+    # forever — never re-screened, never re-admitted. Fold in any pre-existing NO carried in
+    # the cache, force NO, and exclude these from every screen target set below.
+    blacklist = load_bds_blacklist(conn)
+    blacklist.update(s for s in all_syms if bds_results.get(s) == "NO")
+    for sym in blacklist:
+        bds_results[sym] = "NO"
+    print(f"  {len(blacklist)} symbol(s) permanently blacklisted (forced NO, never re-screened)")
+
+    def _grade(s: str) -> str:
+        return sharia_results.get(s, ("UNKNOWN", ""))[0]
+
     last_refresh = _bds_last_refresh()
     due = last_refresh is None or (
         date.today().month in BDS_REFRESH_MONTHS
         and _quarter(last_refresh) != _quarter(date.today())
     )
+    completed = True  # every batch we ran this quarter finished (gates the refresh marker)
 
-    if due:
-        targets = {s: sp500.get(s, s) for s in all_syms}
-        print(f"  Quarterly BDS refresh due (last refresh: {last_refresh}) — "
-              f"web-checking {len(targets)} symbol(s) via {BDS_MODEL} batch")
-    else:
-        targets = {s: sp500.get(s, s) for s in all_syms if not bds_results.get(s)}
-        print(f"  BDS refresh not due this run (last refresh: {last_refresh}); "
-              f"web-checking {len(targets)} new/unscreened symbol(s), carrying forward the rest")
-
-    if targets and not ANTHROPIC_API_KEY:
+    if not ANTHROPIC_API_KEY:
         print("  WARNING: ANTHROPIC_API_KEY not set — skipping web BDS check, "
-              "carrying forward cached status")
-    elif targets:
-        fresh, completed = check_bds_web_batch(targets)
+              "carrying forward cached status (blacklist still enforced).")
+    elif due:
+        # Phase A — re-screen the S&P 500 names that can be index members: not blacklisted
+        # and not Sharia-F (an F is excluded regardless of BDS). This is last quarter's
+        # passers plus any new S&P members; permanent failures are skipped entirely.
+        sp_targets = {
+            s: sp500.get(s, s) for s in sp500_syms
+            if s not in blacklist and _grade(s) != "F"
+        }
+        print(f"  Quarterly BDS refresh due (last refresh: {last_refresh}) — Phase A: "
+              f"web-checking {len(sp_targets)} S&P name(s) via {BDS_MODEL} batch")
+        fresh, ok = check_bds_web_batch(sp_targets)
         bds_results.update(fresh)
-        if due and completed:
-            _write_bds_refresh(date.today())
+        completed &= ok
+        blacklist.update(s for s, v in fresh.items() if v == "NO")
 
-    print(f"  BDS status resolved for {len(bds_results)} symbols")
+        # Size the backfill from the provisional S&P index (ACTIVE + WARNED count toward 500).
+        sp_members = [
+            s for s in sp500_syms
+            if market_caps.get(s, 0) > 0
+            and classify_symbol(_grade(s), bds_results.get(s, "UNKNOWN"))[0] in ("ACTIVE", "WARNED")
+        ]
+        shortfall = MAX_INDEX_SIZE - min(len(sp_members), MAX_INDEX_SIZE)
+        print(f"  S&P yields {len(sp_members)} index member(s); backfill shortfall: {shortfall}")
+
+        # Phase B — screen only enough Russell 1000 candidates (highest market cap first,
+        # grade-eligible, non-blacklisted) to cover the shortfall, plus a buffer for names
+        # that come back targeted. Lower-cap pool names are never screened.
+        if shortfall > 0:
+            pool = sorted(
+                (s for s in replacement_pool_syms
+                 if s not in blacklist and market_caps.get(s, 0) > 0
+                 and _grade_allows_active(_grade(s))),
+                key=lambda s: market_caps.get(s, 0), reverse=True,
+            )
+            cursor = 0
+            for _ in range(BDS_BACKFILL_MAX_ROUNDS):
+                ok_count = sum(
+                    1 for s in pool[:cursor]
+                    if bds_results.get(s) and bds_results.get(s) != "NO"
+                )
+                if ok_count >= shortfall or cursor >= len(pool):
+                    break
+                want = (shortfall - ok_count) + BDS_BACKFILL_BUFFER
+                tranche = {
+                    s: sp500.get(s, s) for s in pool[cursor:cursor + want]
+                    if not bds_results.get(s)
+                }
+                cursor += want
+                if not tranche:
+                    continue
+                print(f"  Phase B: web-checking {len(tranche)} backfill candidate(s)")
+                fresh, ok = check_bds_web_batch(tranche)
+                bds_results.update(fresh)
+                completed &= ok
+                blacklist.update(s for s, v in fresh.items() if v == "NO")
+
+        if completed:
+            _write_bds_refresh(date.today())
+    else:
+        # Off-cycle: only screen brand-new index-relevant names with no verdict yet (e.g. a
+        # new S&P member added mid-quarter). Everything else carries forward unchanged.
+        targets = {
+            s: sp500.get(s, s) for s in sp500_syms
+            if s not in blacklist and _grade(s) != "F" and not bds_results.get(s)
+        }
+        if targets:
+            print(f"  BDS refresh not due (last refresh: {last_refresh}); web-checking "
+                  f"{len(targets)} new index name(s), carrying the rest forward")
+            fresh, _ = check_bds_web_batch(targets)
+            bds_results.update(fresh)
+            blacklist.update(s for s, v in fresh.items() if v == "NO")
+        else:
+            print(f"  BDS refresh not due (last refresh: {last_refresh}); nothing new to screen")
+
+    # Persist the permanent blacklist (newly-confirmed targets + any folded-in cached NOs)
+    # to the committed file and the DB mirror.
+    all_no = sorted(s for s, v in bds_results.items() if v == "NO")
+    if all_no:
+        save_bds_blacklist(conn, [(s, sp500.get(s, s)) for s in all_no])
+
+    print(f"  BDS status resolved for {len(bds_results)} symbols; "
+          f"{len(all_no)} permanently blacklisted")
 
     print("=== Step 6: Apply state machine ===")
     classifications: dict[str, tuple[str, str | None]] = {}

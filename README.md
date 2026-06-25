@@ -27,15 +27,18 @@ The index rebuild, force-sells, BDS check, and CSV commit run **every day** thro
 | Sharia grade ≥ B- and BDS = YES or UNKNOWN | ACTIVE — eligible for purchase |
 | Sharia grade = D | WARNED — hold, no new purchases |
 | Sharia grade = F | FORCE SELL |
-| BDS = NO | FORCE SELL |
+| BDS = NO | FORCE SELL — **permanently blacklisted** |
 | BDS = UNKNOWN | Treated as compliant — no action |
 
 - **Sharia grade** comes from the [HalalScreener](https://halalscreener.app) API.
 - **BDS status** (whether a company is an explicit target of a Boycott, Divestment, Sanctions campaign) is classified by Claude Opus 4.8 **with web search** — one grounded request per symbol via the Anthropic Message Batches API — re-screened once per quarter (Mar/Jun/Sep/Dec). `UNKNOWN` is treated as compliant, since the vast majority of companies are simply not named in any campaign.
+- **Scoped screening:** each quarter only re-checks roughly the 500 index names — the S&P 500 plus just enough Russell 1000 backfill candidates (highest market cap first) to fill vacated slots — instead of the full ~1,000-name universe. Lower-cap pool names that can't reach the index are never screened, which keeps the per-quarter cost near ~500 grounded requests.
+- **Permanent blacklist:** once a company is confirmed targeted (`BDS = NO`) it is blacklisted **forever** — recorded in [`index/bds_blacklist.json`](index/bds_blacklist.json) (mirrored in the DB), never re-screened, and never re-admitted to the index even if a later check would clear it. A quarter therefore screens last quarter's passers plus any new names, and skips known violators.
 
 ## Public artifacts
 
 - [`index/constituents.csv`](index/constituents.csv) — the strict 500-name index composition with grades, BDS status, and target weights (weights sum to 100%)
+- [`index/bds_blacklist.json`](index/bds_blacklist.json) — **permanent** list of companies confirmed as BDS targets (`symbol`, `company`, `date` first flagged); these are excluded forever and never re-screened
 - `index/snapshots/YYYY-MM.csv` — one dated snapshot of the full 500-name list and weights per calendar month, for historical/point-in-time reference
 - [`reports/event_log.csv`](reports/event_log.csv) — **permanent, append-only** log of every event: `INDEX_ADDED`, `INDEX_REMOVED`, `STATUS_CHANGE`, `GRADE_CHANGE`, `BDS_CHANGE` (columns: `Date, Symbol, Company, EventType, OldValue, NewValue, Reason`)
 - [`reports/change_log.md`](reports/change_log.md) — human-readable, rolling 30 trading days of additions, removals, and warnings
@@ -134,6 +137,7 @@ Key constants you may want to adjust live near the top of the scripts:
 | `SHARIA_RATE_LIMIT_S` | `constituent_scan.py` | `6.0` | Seconds between Sharia API calls (10/min) |
 | `BDS_REFRESH_MONTHS` | `constituent_scan.py` | `{3,6,9,12}` | Calendar months the quarterly BDS web-search re-screen runs (Sharia re-screens monthly via a calendar sweep — no constant) |
 | `BDS_MODEL` | `constituent_scan.py` | `claude-opus-4-8` | Anthropic model for the BDS classifier (overridable via the `BDS_MODEL` env/repo variable) |
+| `BDS_BACKFILL_BUFFER` | `constituent_scan.py` | `25` | Extra Russell 1000 backfill candidates screened beyond the exact shortfall, so names that come back targeted don't leave the index short |
 | `MIN_CASH` | `daily_invest.py` | `20.0` | Skip the daily buy if account cash is below this |
 | `MIN_NOTIONAL` | `daily_invest.py` | `1.0` | Minimum dollar amount per order |
 | `TOP_N_GAPS` | `daily_invest.py` | `20` | How many of the most-underweight names to buy each day |
@@ -151,6 +155,7 @@ Key constants you may want to adjust live near the top of the scripts:
 ├── requirements.txt         # Python dependencies
 ├── index/
 │   ├── constituents.csv     # public: strict 500-name index composition
+│   ├── bds_blacklist.json   # public: permanent list of confirmed BDS targets
 │   └── snapshots/           # public: one dated weights snapshot per month
 └── reports/                 # public: event_log.csv, change_log.md, sharia_progress.md
 ```
