@@ -4,7 +4,7 @@
 
 A self-managed "direct index" that replicates the S&P 500 with Shariah + BDS compliance
 filters applied. Runs on a separate Alpaca account from Halal_Dip_Trader. Two workflows:
-a **monthly constituent scan** that rebuilds the target list, and a **daily investment flow**
+a **constituent scan** that rebuilds the target list, and a **daily investment flow**
 that deploys available cash into the most underweight holdings via fractional notional orders.
 
 No Telegram notifications — reporting is a rolling `.md` file committed to the repo by
@@ -27,9 +27,9 @@ GitHub Actions.
 | Replacement pool | Next-largest US stocks by market cap (rank 501+) passing both filters |
 | Sharia entry bar | HalalScreener grade **B- or better** |
 | Sharia warn | Grade == **D** → hold + warning flag |
-| Sharia exit | Grade == **F** → sell immediately at monthly scan |
+| Sharia exit | Grade == **F** → sell immediately at the constituent scan |
 | BDS warn | N/A — UNKNOWN is treated as compliant (no warning) |
-| BDS exit | AI returns `bds_friendly: NO` → sell immediately at monthly scan |
+| BDS exit | AI returns `bds_friendly: NO` → sell immediately at the constituent scan |
 | Min daily cash to deploy | **$20** (skip run if below) |
 | Daily buy strategy | Most-underweight-first cash-flow rebalancing |
 | Notifications | None (Telegram not used here) |
@@ -68,9 +68,11 @@ Endpoint: `GET https://halalscreener.app/api/v1/screen?symbol=TICKER`
 Header: `Authorization: Bearer {HALALSCREENER_API_KEY}`
 
 ### BDS Compliance
-Claude AI (training data only, no web search) — same pattern as HDT Cell 6 prompt but
-stripped down to BDS-only. Return field: `bds_friendly: YES | NO | UNKNOWN`. Cache
-results in SQLite; only re-check monthly for `UNKNOWN` or on new symbols.
+Claude Opus 4.8 **with web search**, one grounded request per symbol via the Anthropic
+Message Batches API (authoritative sources: bdsmovement.net campaigns, AFSC Investigate,
+reputable news). Stored as `bds_status: YES | NO | UNKNOWN` (YES = not targeted). Cache in
+SQLite + the committed CSV; re-screen once per calendar quarter (Mar/Jun/Sep/Dec) and screen
+new/unscreened symbols off-quarter. `UNKNOWN` is treated as compliant.
 
 ---
 
@@ -156,18 +158,21 @@ CREATE TABLE change_log (
 
 ---
 
-## Monthly Workflow
+## Constituent Scan Workflow
 
-**Trigger:** GitHub Actions cron — 1st trading day of each month, pre-market (e.g. 08:00 ET).
+**Trigger:** GitHub Actions cron — **daily** (`0 13 * * *`, 09:00 ET). Sharia is screened as a monthly calendar sweep (≤99 names/day from the 1st until the ~1,000-name universe is covered, then dormant); BDS is re-screened once per quarter (Mar/Jun/Sep/Dec). The rebuild, force-sells, and CSV commit run every day.
 
 **Steps:**
 
 1. **Fetch S&P 500 symbols** via Wikipedia scrape.
 2. **Fetch market caps** for all S&P 500 + Russell 1000 symbols via yfinance `.info`.
-3. **Sharia check** all symbols not checked in the last 30 days via HalalScreener API
-   (rate-limit: ~0.5s between calls; ~600 symbols → ~5 min).
-4. **BDS check** all symbols with stale or missing BDS cache (Claude AI, training data only;
-   batch prompt acceptable — check 10 symbols per call to reduce cost).
+3. **Sharia check** — monthly calendar sweep: re-check every symbol not yet screened this
+   calendar month via HalalScreener (≤`SHARIA_DAILY_CAP` (99)/day, ~6s between calls), ~10
+   days to cover the ~1,000-name universe, then dormant until the next 1st.
+4. **BDS check** — once per calendar quarter (Mar/Jun/Sep/Dec), classify every symbol via
+   Claude Opus 4.8 **with web search**, one grounded request per symbol through the Anthropic
+   Message Batches API; off-quarter runs only screen new/unscreened names and carry the rest
+   forward. `UNKNOWN` is treated as compliant.
 5. **Apply state machine** to every symbol:
    - sharia F or bds=NO → REMOVED (sell if held)
    - sharia D → WARNED (hold, flag)
@@ -179,6 +184,12 @@ CREATE TABLE change_log (
 8. **Execute forced sells** for REMOVED symbols via Alpaca market sell orders.
 9. **Persist** updated `constituents` table and `change_log` entries.
 10. **Generate rolling report** (see Reporting section).
+
+**Quarterly weight rebalance** (`quarterly_rebalance.py`, workflow "Quarterly Rebalance",
+`0 14 22-26 3,6,9,12 *`): trims holdings that have drifted above target back down (sell-only,
+banded); freed cash redeploys via the daily job. Aligned to S&P reconstitution; a market-open
+guard skips closed-market firings. A market-cap-weighted book self-corrects price drift, so
+weights only need a retrim when targets change — at reconstitution and compliance removals.
 
 ---
 
@@ -239,7 +250,7 @@ logs/
 
 ## Reporting (no Telegram)
 
-### `index/constituents.csv` (public, committed after every monthly scan)
+### `index/constituents.csv` (public, committed after every constituent scan)
 Current index composition — the core public deliverable of the repo.
 ```
 Symbol,Company,ShariaGrade,BDSStatus,TargetWeightPct,IndexStatus,Warning
@@ -250,7 +261,7 @@ AMGN,Amgen Inc,D,YES,0.43,WARNED,sharia_D
 ```
 
 ### `reports/change_log.md` (public, rolling 30 trading days)
-Committed by GitHub Actions after each monthly scan. Each run prepends new entries
+Committed by GitHub Actions after each constituent scan. Each run prepends new entries
 and drops entries older than 30 trading days.
 
 ```markdown
@@ -263,7 +274,7 @@ _Last updated: 2026-06-01 | Active: 498 | Warned: 6_
 
 ---
 
-## 2026-06-01 (Monthly Scan)
+## 2026-06-01 (Constituent Scan)
 ### Added (3)
 | Symbol | Company | Grade | BDS | Market Cap |
 |--------|---------|-------|-----|-----------|
@@ -280,7 +291,7 @@ _Last updated: 2026-06-01 | Active: 498 | Warned: 6_
 | AMGN | Amgen | D |
 
 ---
-## 2026-05-01 (Monthly Scan)
+## 2026-05-01 (Constituent Scan)
 ...
 ```
 
@@ -299,8 +310,11 @@ Top of README must include:
 
 ```
 .github/workflows/
-  monthly_scan.yml      # cron: '0 13 1-7 * 1'  (first Monday of month, 09:00 ET)
-  daily_invest.yml      # cron: '0 13 * * 1-5'  (09:00 ET weekdays)
+  constituent_scan.yml    # cron: '0 13 * * *'           (daily, 09:00 ET — Sharia monthly sweep, BDS quarterly)
+  daily_invest.yml        # cron: '35 13 * * 1-5'        (weekdays, 09:35 ET — deploy cash)
+  quarterly_rebalance.yml # cron: '0 14 22-26 3,6,9,12 *' (quarterly — trim overweight)
+  initial_buy.yml         # workflow_dispatch            (one-time seed)
+  liquidate.yml           # workflow_dispatch            (guarded full liquidation)
 ```
 
 **Secrets needed** (separate from HDT):
@@ -361,7 +375,7 @@ cache or artifact instead (decide in implementation).
 
 ## Verification Plan
 
-1. Run monthly scan against paper account: confirm `constituents` table has 500 ACTIVE rows
+1. Run constituent scan against paper account: confirm `constituents` table has 500 ACTIVE rows
    with `target_weight` values summing to 1.0 (within float tolerance).
 2. Manually force one symbol to grade F in DB; re-run monthly sell step; confirm Alpaca
    market sell order placed and symbol status → REMOVED.

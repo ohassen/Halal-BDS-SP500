@@ -1,13 +1,14 @@
-name: Monthly Constituent Scan
+name: Constituent Scan
 
 on:
   schedule:
-    # Every day at 13:00 UTC (09:00 ET), including weekends. The scan is gated by the
-    # HalalScreener free-tier daily API cap, not by market hours: it refreshes up to ~95
-    # stale symbols per run, exits early on partial-sharia-check days, and only runs the
-    # full rebuild once all stale symbols have been refreshed. Running on weekends adds two
-    # extra refresh days per week so the rolling re-check completes sooner. Any force-sell
-    # orders submitted while the market is closed simply queue for the next session.
+    # Every day at 13:00 UTC (09:00 ET), including weekends. Sharia is screened as a
+    # monthly calendar sweep gated by the HalalScreener free-tier daily cap: from the 1st
+    # it refreshes up to ~99 names/run until the ~1,000-name universe is covered (~10 days),
+    # then stays dormant until the next 1st. BDS re-screens once per quarter. The rebuild,
+    # force-sells, and CSV commit run every day (a cold-start guard defers the rebuild only
+    # on an empty database). Force-sell orders placed while the market is closed queue for
+    # the next session.
     - cron: '0 13 * * *'
   workflow_dispatch:
 
@@ -39,20 +40,22 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Run monthly scan
+      - name: Run constituent scan
         env:
           ALPACA_INDEX_API_KEY: ${{ secrets.ALPACA_INDEX_API_KEY }}
           ALPACA_INDEX_API_SECRET: ${{ secrets.ALPACA_INDEX_API_SECRET }}
           HALALSCREENER_API_KEY: ${{ secrets.HALALSCREENER_API_KEY }}
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          BDS_MODEL: ${{ vars.BDS_MODEL || 'claude-opus-4-8' }}
           ALPACA_PAPER: ${{ vars.ALPACA_PAPER || 'true' }}
-        run: python monthly_scan.py
+        run: python constituent_scan.py
 
       - name: Commit public artifacts
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           [ -f index/constituents.csv ] && git add index/constituents.csv || true
+          [ -f index/bds_state.json ] && git add index/bds_state.json || true
           [ -d index/snapshots ] && git add index/snapshots || true
           [ -f reports/change_log.md ] && git add reports/change_log.md || true
           [ -f reports/event_log.csv ] && git add reports/event_log.csv || true

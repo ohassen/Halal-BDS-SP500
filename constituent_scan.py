@@ -1,12 +1,12 @@
 """
-Monthly constituent scan for Halal-BDS-SP500.
+Constituent scan for Halal-BDS-SP500.
 
 Steps:
   1. Fetch S&P 500 symbols from Wikipedia
   2. Fetch Russell 1000 symbols → build replacement pool (R1000 - SP500)
   3. Fetch market caps via yfinance
-  4. Sharia compliance check via HalalScreener API (skip if checked < 30 days ago)
-  5. BDS compliance check via Claude Opus (batch 10 symbols, skip if cached < 30 days)
+  4. Sharia compliance check via HalalScreener API (monthly calendar sweep, ≤99/day)
+  5. BDS compliance check via Claude Opus + web search (Message Batches API, ~quarterly)
   6. Apply state machine → ACTIVE / WARNED / REMOVED
   7. Build 500-name list (backfill from R1000 replacement pool if needed)
   8. Compute market-cap target weights
@@ -14,20 +14,22 @@ Steps:
  10. Persist to DB; write public artifacts; generate change_log entries
 """
 
+import csv
 import io
 import json
 import os
+import re
 import sqlite3
 import time
 from datetime import date, datetime, timedelta
 
+import anthropic
 import pandas as pd
 import requests
 import yfinance as yf
 from alpaca.trading.client import TradingClient
 from alpaca.trading.enums import OrderSide, TimeInForce
 from alpaca.trading.requests import MarketOrderRequest
-from openai import OpenAI
 
 from init_db import init_db
 
@@ -43,7 +45,7 @@ SNAPSHOT_DIR = "index/snapshots"          # one dated weights snapshot per month
 
 HALALSCREENER_BASE = "https://halalscreener.app/api/v1/screen"
 HALALSCREENER_KEY = os.environ["HALALSCREENER_API_KEY"]
-OPENROUTER_KEY = os.environ["OPENROUTER_API_KEY"]
+ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
 ALPACA_KEY = os.environ["ALPACA_INDEX_API_KEY"]
 ALPACA_SECRET = os.environ["ALPACA_INDEX_API_SECRET"]
 ALPACA_PAPER = os.environ.get("ALPACA_PAPER", "true").lower() == "true"
@@ -57,10 +59,37 @@ GRADE_RANK = {
 
 MAX_INDEX_SIZE = 500
 SHARIA_RATE_LIMIT_S = 6.0   # 10 requests/minute free tier limit
-SHARIA_DAILY_CAP = 95       # stay comfortably under 100/day free tier limit
+SHARIA_DAILY_CAP = 99       # one under the ~100/day HalalScreener free-tier limit
 SHARIA_MAX_RETRIES = 3
-BDS_BATCH_SIZE = 10
-STALE_DAYS = 30
+
+# BDS screening: web-search-grounded classification via the Message Batches API,
+# refreshed once per calendar quarter (aligned to S&P reconstitution: Mar/Jun/Sep/Dec).
+# The scan runs daily, so a committed marker file (BDS_STATE_FILE) records the last
+# refresh; the screen only re-runs in a quarter-end month it hasn't already covered.
+# Off-cycle runs only screen brand-new symbols and carry the rest forward.
+BDS_MODEL = os.environ.get("BDS_MODEL", "claude-opus-4-8")
+BDS_REFRESH_MONTHS = {3, 6, 9, 12}
+BDS_BATCH_POLL_S = 30
+BDS_BATCH_MAX_WAIT = 3 * 60 * 60  # seconds to wait for the batch before carrying forward
+BDS_STATE_FILE = "index/bds_state.json"
+BDS_SYSTEM = (
+    "You are a compliance analyst determining whether a publicly traded company is a "
+    "current, explicit target of the BDS (Boycott, Divestment, Sanctions) movement "
+    "against Israel's occupation of Palestinian territories.\n\n"
+    "Use the web_search tool to consult authoritative, current sources before deciding "
+    "— for example the official BDS movement (bdsmovement.net) campaigns, the AFSC "
+    "Investigate project (investigate.afsc.org), and reputable news coverage. "
+    "Distinguish a company that is an explicit BDS/divestment target (named in a boycott "
+    "or divestment campaign) from one merely criticized or discussed.\n\n"
+    "Decide one of:\n"
+    "- TARGETED: the company is an explicit, current target of a BDS boycott or "
+    "divestment campaign.\n"
+    "- NOT_TARGETED: no credible evidence the company is a current BDS target.\n"
+    "- UNKNOWN: genuinely indeterminate after searching.\n\n"
+    "End your response with exactly one line containing your verdict:\n"
+    "VERDICT: TARGETED  (or)  VERDICT: NOT_TARGETED  (or)  VERDICT: UNKNOWN"
+)
+
 TODAY = date.today().isoformat()
 
 # ---------------------------------------------------------------------------
@@ -156,51 +185,115 @@ def check_sharia(symbol: str) -> tuple[str, str]:
     return "UNKNOWN", "UNKNOWN"
 
 
-def batch_check_bds(symbols: list[str]) -> dict[str, str]:
-    """
-    Check BDS status for a batch of symbols via OpenRouter (Claude Opus, training data only).
-    Returns {symbol: "YES" | "NO" | "UNKNOWN"}.
-    """
-    client = OpenAI(
-        base_url="https://openrouter.ai/api/v1",
-        api_key=OPENROUTER_KEY,
+_VERDICT_RE = re.compile(r"VERDICT:\s*(TARGETED|NOT_TARGETED|UNKNOWN)", re.IGNORECASE)
+# Model-facing verdicts map to the stored BDS codes (YES = bds-friendly / not targeted).
+_VERDICT_TO_BDS = {"TARGETED": "NO", "NOT_TARGETED": "YES", "UNKNOWN": "UNKNOWN"}
+
+
+def _parse_bds_verdict(message) -> str:
+    """Map a model response (which includes web-search blocks) to a stored BDS code."""
+    text = " ".join(
+        b.text for b in message.content if getattr(b, "type", None) == "text"
     )
-    symbol_list = ", ".join(symbols)
-    prompt = (
-        "You are a BDS compliance classifier. Using only your training data "
-        "(do not search the web), classify each of the following stock ticker symbols "
-        "as to whether the company is targeted by the BDS movement "
-        "(Boycott, Divestment, Sanctions — related to the Israel-Palestine conflict).\n\n"
-        f"Symbols: {symbol_list}\n\n"
-        "Return ONLY a valid JSON object with ticker symbols as keys and one of these "
-        'exact values: "YES" (not BDS-targeted, i.e. bds_friendly), '
-        '"NO" (BDS-targeted, i.e. not bds_friendly), '
-        '"UNKNOWN" (insufficient information).\n\n'
-        "Example: {\"AAPL\": \"YES\", \"META\": \"NO\", \"XYZ\": \"UNKNOWN\"}\n\n"
-        "Return only the JSON object, no explanation."
-    )
+    matches = _VERDICT_RE.findall(text)
+    if not matches:
+        return "UNKNOWN"
+    return _VERDICT_TO_BDS.get(matches[-1].upper(), "UNKNOWN")
+
+
+def check_bds_web_batch(targets: dict[str, str]) -> tuple[dict[str, str], bool]:
+    """Classify BDS status for each {symbol: company} via Opus + web search.
+
+    Submits one grounded request per symbol through the Message Batches API (50%
+    cheaper, asynchronous) and returns ({symbol: "YES"|"NO"|"UNKNOWN"}, completed).
+    `completed` is False if the batch is cancelled after BDS_BATCH_MAX_WAIT, so the
+    caller can carry forward cached values and retry next run rather than recording
+    a quarterly refresh that never finished.
+    """
+    if not targets:
+        return {}, True
+
+    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    requests_payload = [
+        {
+            "custom_id": f"bds-{sym}",
+            "params": {
+                "model": BDS_MODEL,
+                "max_tokens": 4096,
+                "system": BDS_SYSTEM,
+                "messages": [{
+                    "role": "user",
+                    "content": (
+                        f"Company: {name} (ticker {sym}). Is this company currently "
+                        "targeted by the BDS movement? Search the web, then give your verdict."
+                    ),
+                }],
+                "tools": [{"type": "web_search_20260209", "name": "web_search", "max_uses": 5}],
+                "output_config": {"effort": "medium"},
+            },
+        }
+        for sym, name in targets.items()
+    ]
+
+    batch = client.messages.batches.create(requests=requests_payload)
+    print(f"  BDS batch {batch.id} created ({len(requests_payload)} requests); polling…")
+
+    deadline = time.time() + BDS_BATCH_MAX_WAIT
+    while client.messages.batches.retrieve(batch.id).processing_status != "ended":
+        if time.time() > deadline:
+            print(f"  WARNING: BDS batch {batch.id} exceeded {BDS_BATCH_MAX_WAIT}s — "
+                  "cancelling and carrying forward cached status.")
+            try:
+                client.messages.batches.cancel(batch.id)
+            except Exception as e:
+                print(f"  (batch cancel failed: {e})")
+            return {}, False
+        time.sleep(BDS_BATCH_POLL_S)
+
+    results: dict[str, str] = {}
+    for r in client.messages.batches.results(batch.id):
+        sym = r.custom_id[len("bds-"):]
+        if r.result.type == "succeeded":
+            results[sym] = _parse_bds_verdict(r.result.message)
+        else:
+            print(f"  BDS request for {sym} did not succeed ({r.result.type}); UNKNOWN")
+            results[sym] = "UNKNOWN"
+
+    targeted = sum(1 for v in results.values() if v == "NO")
+    unknown = sum(1 for v in results.values() if v == "UNKNOWN")
+    print(f"  BDS batch complete: {len(results)} resolved — {targeted} targeted, {unknown} unknown")
+    return results, True
+
+
+def load_bds_from_csv() -> dict[str, str]:
+    """Carry-forward source for BDS status between quarterly refreshes.
+
+    The committed index/constituents.csv survives GitHub Actions cache loss (unlike
+    the cached DB), so off-cycle runs reuse the last published verdicts.
+    """
+    out: dict[str, str] = {}
+    if not os.path.exists(INDEX_CSV):
+        return out
+    with open(INDEX_CSV, newline="") as f:
+        for row in csv.DictReader(f):
+            sym, bds = row.get("Symbol"), row.get("BDSStatus")
+            if sym and bds:
+                out[sym] = bds
+    return out
+
+
+def _bds_last_refresh() -> "date | None":
     try:
-        response = client.chat.completions.create(
-            model="anthropic/claude-opus-4-8",
-            max_tokens=1024,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        text = response.choices[0].message.content.strip()
-        # Strip markdown code fences if present
-        if text.startswith("```"):
-            text = text.split("```")[1]
-            if text.startswith("json"):
-                text = text[4:]
-        result = json.loads(text)
-        # Validate values
-        validated = {}
-        for sym in symbols:
-            val = result.get(sym, "UNKNOWN").upper()
-            validated[sym] = val if val in ("YES", "NO", "UNKNOWN") else "UNKNOWN"
-        return validated
-    except Exception as e:
-        print(f"  BDS check error for batch {symbols[:3]}...: {e}")
-        return {sym: "UNKNOWN" for sym in symbols}
+        with open(BDS_STATE_FILE) as f:
+            return date.fromisoformat(json.load(f)["last_refresh"])
+    except (FileNotFoundError, KeyError, ValueError, json.JSONDecodeError):
+        return None
+
+
+def _write_bds_refresh(d: date) -> None:
+    os.makedirs(os.path.dirname(BDS_STATE_FILE), exist_ok=True)
+    with open(BDS_STATE_FILE, "w") as f:
+        json.dump({"last_refresh": d.isoformat()}, f)
 
 
 # ---------------------------------------------------------------------------
@@ -214,13 +307,24 @@ def load_constituents(conn: sqlite3.Connection) -> dict[str, dict]:
     return {r[0]: dict(zip(cols, r)) for r in rows}
 
 
-def is_stale(last_checked: str | None) -> bool:
+def needs_sharia_check(last_checked: str | None) -> bool:
+    """True if this symbol hasn't been Sharia-screened yet this calendar month.
+
+    Drives the monthly sweep: on the 1st everything is due; once a name is
+    re-checked its timestamp moves into the current month and it stops being due,
+    so the screen goes dormant until the next 1st.
+    """
     if not last_checked:
         return True
     try:
-        return (date.today() - date.fromisoformat(last_checked)).days >= STALE_DAYS
+        return date.fromisoformat(last_checked) < date.today().replace(day=1)
     except ValueError:
         return True
+
+
+def _quarter(d: date) -> tuple[int, int]:
+    """(year, quarter-index 0-3) — gates the BDS screen to once per calendar quarter."""
+    return (d.year, (d.month - 1) // 3)
 
 
 # ---------------------------------------------------------------------------
@@ -244,7 +348,10 @@ def classify_symbol(sharia_grade: str, bds_status: str) -> tuple[str, str | None
     if sharia_grade == "D":
         return "WARNED", "sharia_D"
 
-    # Active: grade >= B- (rank >= 4) and bds in YES/UNKNOWN
+    # BDS: only a confirmed target (bds_status == "NO", force-sold above) is
+    # excluded. UNKNOWN is the normal state for the vast majority of companies —
+    # they simply aren't named in any BDS campaign — so it is treated as eligible,
+    # exactly like a confirmed "not targeted" (YES). UNKNOWN is never a warning.
     if grade_rank is not None and grade_rank >= GRADE_RANK["B-"]:
         return "ACTIVE", None
 
@@ -317,25 +424,29 @@ def run() -> None:
     existing = load_constituents(conn)
     sharia_results: dict[str, tuple[str, str]] = {}
 
-    # Separate stale symbols (need API call) from fresh ones (use cache)
-    # Priority: never-checked first, then sorted by last_checked ascending (most stale first)
-    stale_syms = []
+    # Sharia is screened as a monthly calendar sweep: on the 1st of each month the
+    # whole universe is due; we re-check up to SHARIA_DAILY_CAP/day (free-tier limit)
+    # over the following ~10 days, then go dormant until the next 1st.
+    # Priority: never-checked first, then oldest last_checked first.
+    due_syms = []
     for sym in all_syms:
         row = existing.get(sym)
         last_checked = row["last_checked"] if row else None
-        if is_stale(last_checked):
-            stale_syms.append((last_checked or "", sym))
+        if needs_sharia_check(last_checked):
+            due_syms.append((last_checked or "", sym))
         else:
             sharia_results[sym] = (row["sharia_grade"], "cached")
 
-    stale_syms.sort()  # None/"" sorts first → never-checked get priority
-    to_check = [sym for _, sym in stale_syms[:SHARIA_DAILY_CAP]]
-    skipped = [sym for _, sym in stale_syms[SHARIA_DAILY_CAP:]]
+    due_syms.sort()  # None/"" sorts first → never-checked get priority
+    to_check = [sym for _, sym in due_syms[:SHARIA_DAILY_CAP]]
+    deferred = [sym for _, sym in due_syms[SHARIA_DAILY_CAP:]]
 
-    print(f"  {len(sharia_results)} cached, {len(to_check)} to check, {len(skipped)} deferred (daily cap)")
+    print(f"  {len(sharia_results)} fresh this month, {len(to_check)} to check, "
+          f"{len(deferred)} deferred to a later run")
 
-    # Use existing grade for deferred symbols; UNKNOWN if no grade on record
-    for sym in skipped:
+    # Carry forward the existing grade for deferred symbols (still valid until their
+    # monthly slot comes up); UNKNOWN only if there is no grade on record at all.
+    for sym in deferred:
         row = existing.get(sym)
         sharia_results[sym] = (row["sharia_grade"] if row else "UNKNOWN", "deferred")
 
@@ -348,7 +459,7 @@ def run() -> None:
 
     print(f"  Checked/cached {len(sharia_results)} symbols")
 
-    # Persist freshly-checked grades immediately so tomorrow's run skips them
+    # Persist freshly-checked grades immediately so later runs skip them this month
     for sym, (grade, source) in sharia_results.items():
         if source not in ("cached", "deferred"):
             conn.execute(
@@ -361,35 +472,58 @@ def run() -> None:
             )
     conn.commit()
 
-    if skipped:
-        _write_sharia_progress(conn, len(to_check), len(skipped))
+    # Cold-start guard: defer the full rebuild ONLY while some name has never been
+    # graded at all (empty DB / cache loss / brand-new ticker). In steady state every
+    # name carries a prior grade, so the rebuild + force-sells + BDS + CSV commit run
+    # daily even mid-sweep, using cached grades for names not yet re-checked this month.
+    checked_now = set(to_check)
+    ungraded_remaining = [
+        sym for sym in all_syms
+        if not (existing.get(sym) or {}).get("last_checked") and sym not in checked_now
+    ]
+    if ungraded_remaining:
+        _write_sharia_progress(conn, len(to_check), len(ungraded_remaining))
         conn.close()
         print(
-            f"Partial run: {len(to_check)} symbols checked today, "
-            f"{len(skipped)} still stale. Re-running tomorrow."
+            f"Cold start: {len(to_check)} graded this run, {len(ungraded_remaining)} "
+            "still ungraded. Deferring rebuild until the universe has baseline grades; "
+            "re-running next scan."
         )
         return
 
     print("=== Step 5: BDS compliance check ===")
+    # Seed from cache (committed CSV first — survives Actions cache loss — then DB)
+    # so symbols not re-checked this run carry forward their last verdict.
     bds_results: dict[str, str] = {}
-
-    # Determine which symbols need BDS re-check
-    bds_stale = []
+    csv_bds = load_bds_from_csv()
     for sym in all_syms:
-        row = existing.get(sym)
-        cached_bds = row["bds_status"] if row else None
-        # Re-check if: no cache, UNKNOWN (re-check monthly), or stale
-        if not cached_bds or cached_bds == "UNKNOWN" or is_stale(row.get("last_checked") if row else None):
-            bds_stale.append(sym)
-        else:
-            bds_results[sym] = cached_bds
+        cached = (existing.get(sym) or {}).get("bds_status") or csv_bds.get(sym)
+        if cached:
+            bds_results[sym] = cached
 
-    # Batch BDS checks
-    for i in range(0, len(bds_stale), BDS_BATCH_SIZE):
-        batch = bds_stale[i:i + BDS_BATCH_SIZE]
-        print(f"  BDS batch {i // BDS_BATCH_SIZE + 1}/{-(-len(bds_stale) // BDS_BATCH_SIZE)}: {batch[:3]}...")
-        batch_result = batch_check_bds(batch)
-        bds_results.update(batch_result)
+    last_refresh = _bds_last_refresh()
+    due = last_refresh is None or (
+        date.today().month in BDS_REFRESH_MONTHS
+        and _quarter(last_refresh) != _quarter(date.today())
+    )
+
+    if due:
+        targets = {s: sp500.get(s, s) for s in all_syms}
+        print(f"  Quarterly BDS refresh due (last refresh: {last_refresh}) — "
+              f"web-checking {len(targets)} symbol(s) via {BDS_MODEL} batch")
+    else:
+        targets = {s: sp500.get(s, s) for s in all_syms if not bds_results.get(s)}
+        print(f"  BDS refresh not due this run (last refresh: {last_refresh}); "
+              f"web-checking {len(targets)} new/unscreened symbol(s), carrying forward the rest")
+
+    if targets and not ANTHROPIC_API_KEY:
+        print("  WARNING: ANTHROPIC_API_KEY not set — skipping web BDS check, "
+              "carrying forward cached status")
+    elif targets:
+        fresh, completed = check_bds_web_batch(targets)
+        bds_results.update(fresh)
+        if due and completed:
+            _write_bds_refresh(date.today())
 
     print(f"  BDS status resolved for {len(bds_results)} symbols")
 
@@ -442,6 +576,7 @@ def run() -> None:
 
     print("=== Step 9: Execute forced sells ===")
     alpaca = TradingClient(ALPACA_KEY, ALPACA_SECRET, paper=ALPACA_PAPER)
+    print(f"Trading mode: {'PAPER' if ALPACA_PAPER else 'LIVE'}")
     positions = {p.symbol: p for p in alpaca.get_all_positions()}
 
     removed_syms = [
@@ -607,7 +742,7 @@ def run() -> None:
 
     _write_change_log(conn)
     conn.close()
-    print("Monthly scan complete.")
+    print("Constituent scan complete.")
 
 
 def _append_event_log(event_rows: list[tuple]) -> None:
@@ -648,7 +783,7 @@ def _write_change_log(conn: sqlite3.Connection) -> None:
 
     # Build new section
     lines = [
-        f"## {TODAY} (Monthly Scan)",
+        f"## {TODAY} (Constituent Scan)",
     ]
     if added:
         lines += [f"\n### Added ({len(added)})", "| Symbol | Old Grade | New Grade | BDS |", "|--------|-----------|-----------|-----|"]

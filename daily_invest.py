@@ -51,7 +51,7 @@ def load_target_weights(conn: sqlite3.Connection) -> dict[str, float]:
     """Return {symbol: target_weight_fraction} for ACTIVE constituents.
 
     The git-committed index/constituents.csv is the source of truth and is
-    preferred: monthly_scan commits it, and the daily workflow checks it out,
+    preferred: constituent_scan commits it, and the daily workflow checks it out,
     so it always reflects the latest scan. The cached index_fund.db, by
     contrast, can lag many runs behind because the two workflows keep separate
     GitHub Actions cache key counters. We fall back to the DB only when the CSV
@@ -93,6 +93,7 @@ def run() -> None:
     init_db(DB_PATH)
     conn = sqlite3.connect(DB_PATH)
     alpaca = TradingClient(ALPACA_KEY, ALPACA_SECRET, paper=ALPACA_PAPER)
+    print(f"Trading mode: {'PAPER' if ALPACA_PAPER else 'LIVE'}")
 
     # Step 1: Check cash
     account = alpaca.get_account()
@@ -110,7 +111,7 @@ def run() -> None:
     # Step 3: Load target weights (prefer committed CSV over cached DB)
     target_weights = load_target_weights(conn)
     if not target_weights:
-        print("No ACTIVE constituents in CSV or DB. Run monthly_scan.py first.")
+        print("No ACTIVE constituents in CSV or DB. Run constituent_scan.py first.")
         conn.close()
         return
 
