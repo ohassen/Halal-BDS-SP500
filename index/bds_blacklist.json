@@ -1,0 +1,192 @@
+[
+  {
+    "symbol": "ABNB",
+    "company": "Airbnb",
+    "date": "2026-07-08"
+  },
+  {
+    "symbol": "AKAM",
+    "company": "Akamai Technologies",
+    "date": "2026-07-08"
+  },
+  {
+    "symbol": "AME",
+    "company": "Ametek",
+    "date": "2026-07-08"
+  },
+  {
+    "symbol": "AMZN",
+    "company": "Amazon",
+    "date": "2026-07-08"
+  },
+  {
+    "symbol": "AXON",
+    "company": "Axon Enterprise",
+    "date": "2026-07-08"
+  },
+  {
+    "symbol": "BWXT",
+    "company": "BWXT",
+    "date": "2026-07-08"
+  },
+  {
+    "symbol": "CACI",
+    "company": "CACI",
+    "date": "2026-07-08"
+  },
+  {
+    "symbol": "CAT",
+    "company": "Caterpillar Inc.",
+    "date": "2026-07-08"
+  },
+  {
+    "symbol": "COKE",
+    "company": "COKE",
+    "date": "2026-07-08"
+  },
+  {
+    "symbol": "CSCO",
+    "company": "Cisco",
+    "date": "2026-07-08"
+  },
+  {
+    "symbol": "CVX",
+    "company": "Chevron Corporation",
+    "date": "2026-07-08"
+  },
+  {
+    "symbol": "DELL",
+    "company": "Dell Technologies",
+    "date": "2026-07-08"
+  },
+  {
+    "symbol": "EL",
+    "company": "Est\u00e9e Lauder Companies (The)",
+    "date": "2026-07-08"
+  },
+  {
+    "symbol": "GOOG",
+    "company": "Alphabet Inc. (Class C)",
+    "date": "2026-07-08"
+  },
+  {
+    "symbol": "GOOGL",
+    "company": "Alphabet Inc. (Class A)",
+    "date": "2026-07-08"
+  },
+  {
+    "symbol": "HD",
+    "company": "Home Depot (The)",
+    "date": "2026-07-08"
+  },
+  {
+    "symbol": "HII",
+    "company": "Huntington Ingalls Industries",
+    "date": "2026-07-08"
+  },
+  {
+    "symbol": "HPQ",
+    "company": "HP Inc.",
+    "date": "2026-07-08"
+  },
+  {
+    "symbol": "IBM",
+    "company": "IBM",
+    "date": "2026-07-08"
+  },
+  {
+    "symbol": "INTC",
+    "company": "Intel",
+    "date": "2026-07-08"
+  },
+  {
+    "symbol": "KO",
+    "company": "Coca-Cola Company (The)",
+    "date": "2026-07-08"
+  },
+  {
+    "symbol": "LMT",
+    "company": "Lockheed Martin",
+    "date": "2026-07-08"
+  },
+  {
+    "symbol": "MCD",
+    "company": "McDonald's",
+    "date": "2026-07-08"
+  },
+  {
+    "symbol": "MDLZ",
+    "company": "Mondelez International",
+    "date": "2026-07-08"
+  },
+  {
+    "symbol": "MSI",
+    "company": "Motorola Solutions",
+    "date": "2026-07-08"
+  },
+  {
+    "symbol": "NOC",
+    "company": "Northrop Grumman",
+    "date": "2026-07-08"
+  },
+  {
+    "symbol": "ORCL",
+    "company": "Oracle Corporation",
+    "date": "2026-07-08"
+  },
+  {
+    "symbol": "PANW",
+    "company": "Palo Alto Networks",
+    "date": "2026-07-08"
+  },
+  {
+    "symbol": "PEP",
+    "company": "PepsiCo",
+    "date": "2026-07-08"
+  },
+  {
+    "symbol": "PLTR",
+    "company": "Palantir Technologies",
+    "date": "2026-07-08"
+  },
+  {
+    "symbol": "RTX",
+    "company": "RTX Corporation",
+    "date": "2026-07-08"
+  },
+  {
+    "symbol": "SBUX",
+    "company": "Starbucks",
+    "date": "2026-07-08"
+  },
+  {
+    "symbol": "TGT",
+    "company": "Target Corporation",
+    "date": "2026-07-08"
+  },
+  {
+    "symbol": "TSLA",
+    "company": "Tesla, Inc.",
+    "date": "2026-07-08"
+  },
+  {
+    "symbol": "TXT",
+    "company": "Textron",
+    "date": "2026-07-08"
+  },
+  {
+    "symbol": "WFC",
+    "company": "Wells Fargo",
+    "date": "2026-07-08"
+  },
+  {
+    "symbol": "WMT",
+    "company": "Walmart",
+    "date": "2026-07-08"
+  },
+  {
+    "symbol": "YUM",
+    "company": "Yum! Brands",
+    "date": "2026-07-08"
+  }
+]
