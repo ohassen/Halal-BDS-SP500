@@ -25,6 +25,11 @@
     "date": "2026-07-08"
   },
   {
+    "symbol": "BKNG",
+    "company": "Booking Holdings",
+    "date": "2026-07-09"
+  },
+  {
     "symbol": "BWXT",
     "company": "BWXT",
     "date": "2026-07-08"
@@ -58,6 +63,11 @@
     "symbol": "DELL",
     "company": "Dell Technologies",
     "date": "2026-07-08"
+  },
+  {
+    "symbol": "DOX",
+    "company": "DOX",
+    "date": "2026-07-09"
   },
   {
     "symbol": "EL",
@@ -150,6 +160,11 @@
     "date": "2026-07-08"
   },
   {
+    "symbol": "PVH",
+    "company": "PVH",
+    "date": "2026-07-09"
+  },
+  {
     "symbol": "RTX",
     "company": "RTX Corporation",
     "date": "2026-07-08"
@@ -175,6 +190,11 @@
     "date": "2026-07-08"
   },
   {
+    "symbol": "UBER",
+    "company": "Uber",
+    "date": "2026-07-09"
+  },
+  {
     "symbol": "WFC",
     "company": "Wells Fargo",
     "date": "2026-07-08"
@@ -188,5 +208,10 @@
     "symbol": "YUM",
     "company": "Yum! Brands",
     "date": "2026-07-08"
+  },
+  {
+    "symbol": "ZION",
+    "company": "ZION",
+    "date": "2026-07-09"
   }
 ]

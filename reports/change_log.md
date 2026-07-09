@@ -2,11 +2,11 @@
 
 > **Disclaimer:** This index is published for informational purposes only and does not constitute financial advice. Past performance does not guarantee future results.
 
-_Last updated: 2026-07-08 | Active: 494 | Warned: 28_
+_Last updated: 2026-07-09 | Active: 492 | Warned: 28_
 
 ---
 
-## 2026-07-08 (Constituent Scan)
+## 2026-07-09 (Constituent Scan)
 
 ### Added (3)
 | Symbol | Old Grade | New Grade | BDS |
@@ -15,7 +15,7 @@ _Last updated: 2026-07-08 | Active: 494 | Warned: 28_
 | HONA | - | UNKNOWN | UNKNOWN |
 | SPCX | - | A | YES |
 
-### Removed (9) — Force Sold
+### Removed (6) — Force Sold
 | Symbol | Reason |
 |--------|--------|
 | AME | bds_NO |
@@ -23,10 +23,7 @@ _Last updated: 2026-07-08 | Active: 494 | Warned: 28_
 | CVX | bds_NO |
 | CSCO | bds_NO |
 | HD | bds_NO |
-| HII | bds_NO |
-| PEP | bds_NO |
 | RTX | bds_NO |
-| TXT | bds_NO |
 
 ### Warned (1) — Grade slipped
 | Symbol | Grade |
