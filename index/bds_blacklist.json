@@ -25,6 +25,11 @@
     "date": "2026-07-08"
   },
   {
+    "symbol": "BA",
+    "company": "Boeing",
+    "date": "2026-07-10"
+  },
+  {
     "symbol": "BKNG",
     "company": "Booking Holdings",
     "date": "2026-07-09"
@@ -68,6 +73,11 @@
     "symbol": "DOX",
     "company": "DOX",
     "date": "2026-07-09"
+  },
+  {
+    "symbol": "DRS",
+    "company": "DRS",
+    "date": "2026-07-10"
   },
   {
     "symbol": "EL",
