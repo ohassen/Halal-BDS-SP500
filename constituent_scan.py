@@ -446,23 +446,46 @@ GRADE_EMOJI = {"A+": "✅", "A": "✅", "A-": "✅", "B+": "⚠️", "B": "⚠�
                "C": "❌", "D": "❌", "F": "❌", "NOT_COVERED": "❓", "UNKNOWN": "❓"}
 
 
-def _write_sharia_progress(conn: sqlite3.Connection, checked_today: int, remaining: int) -> None:
+def _write_sharia_progress(
+    conn: sqlite3.Connection,
+    universe_size: int,
+    checked_today: int,
+    remaining_due: int,
+    ungraded: int,
+) -> None:
+    """Write the Sharia sweep status. Runs on every scan, not just cold start, so the
+    report reflects live state instead of freezing at the last baseline run.
+
+    Three phases:
+      - Cold start (ungraded > 0): still establishing baseline grades for the universe.
+      - Monthly sweep (remaining_due > 0): baseline done, re-checking due names this month.
+      - Idle (both 0): fully screened for the month; dormant until the next 1st.
+    """
     rows = conn.execute(
         "SELECT symbol, sharia_grade, last_checked FROM constituents "
         "WHERE last_checked IS NOT NULL ORDER BY symbol"
     ).fetchall()
-    total = len(rows) + remaining
+    graded = universe_size - ungraded
     os.makedirs("reports", exist_ok=True)
     with open(PROGRESS_MD, "w") as f:
-        f.write(f"# Sharia Screening Progress\n\n")
-        f.write(f"**{len(rows)} / {total} symbols screened** — {remaining} remaining\n\n")
+        f.write("# Sharia Screening Progress\n\n")
+        if ungraded > 0:
+            f.write(f"**Baseline build:** {graded} / {universe_size} symbols graded "
+                    f"— {ungraded} not yet screened\n\n")
+        elif remaining_due > 0:
+            f.write(f"**Monthly sweep in progress:** {universe_size - remaining_due} / "
+                    f"{universe_size} re-checked this month — {remaining_due} still due\n\n")
+        else:
+            next_sweep = (date.today().replace(day=1) + timedelta(days=32)).replace(day=1)
+            f.write(f"**All {universe_size} symbols screened.** Monthly sweep complete — "
+                    f"next sweep begins {next_sweep.isoformat()}.\n\n")
         f.write(f"_Last updated: {TODAY} (+{checked_today} today)_\n\n")
         f.write("| Symbol | Grade | Checked |\n")
         f.write("|--------|-------|--------|\n")
         for sym, grade, checked in rows:
             emoji = GRADE_EMOJI.get(grade, "❓")
             f.write(f"| {sym} | {emoji} {grade} | {checked} |\n")
-    print(f"  Progress report written: {len(rows)}/{total} symbols → {PROGRESS_MD}")
+    print(f"  Progress report written: {graded}/{universe_size} graded → {PROGRESS_MD}")
 
 
 # ---------------------------------------------------------------------------
@@ -554,8 +577,10 @@ def run() -> None:
         sym for sym in all_syms
         if not (existing.get(sym) or {}).get("last_checked") and sym not in checked_now
     ]
+    # Refresh the progress report every run (cold start, mid-sweep, or idle) so it never
+    # looks stuck. `deferred` are names due this month but not reached this run.
+    _write_sharia_progress(conn, len(all_syms), len(to_check), len(deferred), len(ungraded_remaining))
     if ungraded_remaining:
-        _write_sharia_progress(conn, len(to_check), len(ungraded_remaining))
         conn.close()
         print(
             f"Cold start: {len(to_check)} graded this run, {len(ungraded_remaining)} "
