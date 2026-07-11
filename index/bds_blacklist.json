@@ -1,5 +1,10 @@
 [
   {
+    "symbol": "AAPL",
+    "company": "Apple Inc.",
+    "date": "2026-07-11"
+  },
+  {
     "symbol": "ABNB",
     "company": "Airbnb",
     "date": "2026-07-08"
@@ -38,6 +43,11 @@
     "symbol": "BWXT",
     "company": "BWXT",
     "date": "2026-07-08"
+  },
+  {
+    "symbol": "C",
+    "company": "Citigroup",
+    "date": "2026-07-11"
   },
   {
     "symbol": "CACI",
@@ -85,6 +95,16 @@
     "date": "2026-07-08"
   },
   {
+    "symbol": "GD",
+    "company": "General Dynamics",
+    "date": "2026-07-11"
+  },
+  {
+    "symbol": "GIS",
+    "company": "General Mills",
+    "date": "2026-07-11"
+  },
+  {
     "symbol": "GOOG",
     "company": "Alphabet Inc. (Class C)",
     "date": "2026-07-08"
@@ -93,6 +113,11 @@
     "symbol": "GOOGL",
     "company": "Alphabet Inc. (Class A)",
     "date": "2026-07-08"
+  },
+  {
+    "symbol": "GTLB",
+    "company": "GTLB",
+    "date": "2026-07-11"
   },
   {
     "symbol": "HD",
