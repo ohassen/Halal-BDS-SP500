@@ -2,11 +2,11 @@
 
 > **Disclaimer:** This index is published for informational purposes only and does not constitute financial advice. Past performance does not guarantee future results.
 
-_Last updated: 2026-07-11 | Active: 489 | Warned: 28_
+_Last updated: 2026-07-12 | Active: 489 | Warned: 28_
 
 ---
 
-## 2026-07-11 (Constituent Scan)
+## 2026-07-12 (Constituent Scan)
 
 ### Added (3)
 | Symbol | Old Grade | New Grade | BDS |
@@ -25,7 +25,7 @@ _Last updated: 2026-07-11 | Active: 489 | Warned: 28_
 ### Warned (1) — Grade slipped
 | Symbol | Grade |
 |--------|-------|
-| AMG | C |
+| AMG | C+ |
 
 ### Warning Cleared (3)
 | Symbol | Grade |
