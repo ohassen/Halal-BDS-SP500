@@ -2,18 +2,21 @@
 
 > **Disclaimer:** This index is published for informational purposes only and does not constitute financial advice. Past performance does not guarantee future results.
 
-_Last updated: 2026-07-12 | Active: 489 | Warned: 28_
+_Last updated: 2026-07-13 | Active: 492 | Warned: 28_
 
 ---
 
-## 2026-07-12 (Constituent Scan)
+## 2026-07-13 (Constituent Scan)
 
-### Added (3)
+### Added (6)
 | Symbol | Old Grade | New Grade | BDS |
 |--------|-----------|-----------|-----|
 | ECHO | - | UNKNOWN | UNKNOWN |
 | HONA | - | UNKNOWN | UNKNOWN |
+| JAN | - | UNKNOWN | UNKNOWN |
+| MWH | - | UNKNOWN | UNKNOWN |
 | SPCX | - | A | YES |
+| XE | - | UNKNOWN | UNKNOWN |
 
 ### Removed (3) — Force Sold
 | Symbol | Reason |
