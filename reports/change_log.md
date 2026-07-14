@@ -2,11 +2,11 @@
 
 > **Disclaimer:** This index is published for informational purposes only and does not constitute financial advice. Past performance does not guarantee future results.
 
-_Last updated: 2026-07-13 | Active: 492 | Warned: 28_
+_Last updated: 2026-07-14 | Active: 493 | Warned: 28_
 
 ---
 
-## 2026-07-13 (Constituent Scan)
+## 2026-07-14 (Constituent Scan)
 
 ### Added (6)
 | Symbol | Old Grade | New Grade | BDS |
@@ -30,10 +30,11 @@ _Last updated: 2026-07-13 | Active: 492 | Warned: 28_
 |--------|-------|
 | AMG | C+ |
 
-### Warning Cleared (3)
+### Warning Cleared (4)
 | Symbol | Grade |
 |--------|-------|
 | APO | B |
+| ATO | B+ |
 | AVY | A |
 | AGCO | B |
 
