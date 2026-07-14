@@ -74,6 +74,11 @@ BDS_REFRESH_MONTHS = {3, 6, 9, 12}
 BDS_BATCH_POLL_S = 30
 BDS_BATCH_MAX_WAIT = 3 * 60 * 60  # seconds to wait for the batch before carrying forward
 BDS_STATE_FILE = "index/bds_state.json"
+# Bump whenever BDS_SYSTEM's definition of "targeted" changes materially. When the version
+# stored in BDS_STATE_FILE trails this, cached YES/UNKNOWN verdicts are invalidated (the
+# permanent blacklist is never touched) so the universe is re-screened under the new
+# definition on the next run instead of waiting for the next quarterly refresh.
+BDS_DEFINITION_VERSION = 2
 # A confirmed BDS target (verdict NO) is blacklisted permanently — never re-screened, never
 # re-admitted. The committed JSON file is the durable source of truth (survives Actions cache
 # loss); the bds_blacklist DB table mirrors it.
@@ -84,18 +89,27 @@ BDS_BLACKLIST_FILE = "index/bds_blacklist.json"
 BDS_BACKFILL_BUFFER = 25
 BDS_BACKFILL_MAX_ROUNDS = 3
 BDS_SYSTEM = (
-    "You are a compliance analyst determining whether a publicly traded company is a "
-    "current, explicit target of the BDS (Boycott, Divestment, Sanctions) movement "
-    "against Israel's occupation of Palestinian territories.\n\n"
-    "Use the web_search tool to consult authoritative, current sources before deciding "
-    "— for example the official BDS movement (bdsmovement.net) campaigns, the AFSC "
-    "Investigate project (investigate.afsc.org), and reputable news coverage. "
-    "Distinguish a company that is an explicit BDS/divestment target (named in a boycott "
-    "or divestment campaign) from one merely criticized or discussed.\n\n"
+    "You are a compliance analyst determining whether a publicly traded company should be "
+    "treated as a BDS (Boycott, Divestment, Sanctions) concern in relation to Israel's "
+    "occupation of Palestinian territories and its military operations there.\n\n"
+    "Use the web_search tool to consult authoritative, current sources before deciding — "
+    "for example the official BDS movement (bdsmovement.net) campaigns, the American Friends "
+    "Service Committee 'Investigate' project (investigate.afsc.org), the UN OHCHR database of "
+    "business enterprises involved in Israeli settlements, Who Profits (whoprofits.org), and "
+    "reputable news coverage of divestment and accountability campaigns (for example 'No Tech "
+    "for Apartheid' / 'No Azure for Apartheid').\n\n"
+    "Treat the company as TARGETED if EITHER criterion holds:\n"
+    "1. It is an explicit, current target of a named BDS boycott or divestment campaign; OR\n"
+    "2. There is credible, documented evidence that it is materially complicit in the Israeli "
+    "military, the occupation, or the settlement enterprise — for example supplying cloud, AI, "
+    "chips, surveillance, or weapons technology to the Israeli military; operating in or "
+    "materially servicing illegal settlements; or otherwise appearing in the sources above as "
+    "an occupation-linked entity.\n\n"
+    "Do NOT treat a company as TARGETED merely because it has customers, an office, or R&D in "
+    "Israel with no documented link to the military, the occupation, or the settlements.\n\n"
     "Decide one of:\n"
-    "- TARGETED: the company is an explicit, current target of a BDS boycott or "
-    "divestment campaign.\n"
-    "- NOT_TARGETED: no credible evidence the company is a current BDS target.\n"
+    "- TARGETED: meets criterion 1 or 2 above.\n"
+    "- NOT_TARGETED: no credible evidence under either criterion.\n"
     "- UNKNOWN: genuinely indeterminate after searching.\n\n"
     "End your response with exactly one line containing your verdict:\n"
     "VERDICT: TARGETED  (or)  VERDICT: NOT_TARGETED  (or)  VERDICT: UNKNOWN"
@@ -235,8 +249,10 @@ def check_bds_web_batch(targets: dict[str, str]) -> tuple[dict[str, str], bool]:
                 "messages": [{
                     "role": "user",
                     "content": (
-                        f"Company: {name} (ticker {sym}). Is this company currently "
-                        "targeted by the BDS movement? Search the web, then give your verdict."
+                        f"Company: {name} (ticker {sym}). Is this company a BDS concern — "
+                        "either an explicit target of a boycott/divestment campaign, or "
+                        "materially complicit in the Israeli military, occupation, or "
+                        "settlements? Search the web, then give your verdict."
                     ),
                 }],
                 "tools": [{"type": "web_search_20260209", "name": "web_search", "max_uses": 5}],
@@ -293,18 +309,40 @@ def load_bds_from_csv() -> dict[str, str]:
     return out
 
 
-def _bds_last_refresh() -> "date | None":
+def _read_bds_state() -> dict:
     try:
         with open(BDS_STATE_FILE) as f:
-            return date.fromisoformat(json.load(f)["last_refresh"])
-    except (FileNotFoundError, KeyError, ValueError, json.JSONDecodeError):
+            data = json.load(f)
+            return data if isinstance(data, dict) else {}
+    except (FileNotFoundError, ValueError, json.JSONDecodeError):
+        return {}
+
+
+def _bds_last_refresh() -> "date | None":
+    try:
+        return date.fromisoformat(_read_bds_state()["last_refresh"])
+    except (KeyError, ValueError):
         return None
 
 
-def _write_bds_refresh(d: date) -> None:
+def _bds_stored_definition_version() -> int:
+    # Pre-versioning state files predate BDS_DEFINITION_VERSION; treat them as v1 so the
+    # first run under a newer definition triggers a re-screen.
+    return _read_bds_state().get("definition_version", 1)
+
+
+def _write_bds_state(
+    *, last_refresh: "date | None" = None, definition_version: "int | None" = None
+) -> None:
+    """Merge-write bds_state.json, preserving fields that aren't being updated."""
+    state = _read_bds_state()
+    if last_refresh is not None:
+        state["last_refresh"] = last_refresh.isoformat()
+    if definition_version is not None:
+        state["definition_version"] = definition_version
     os.makedirs(os.path.dirname(BDS_STATE_FILE), exist_ok=True)
     with open(BDS_STATE_FILE, "w") as f:
-        json.dump({"last_refresh": d.isoformat()}, f)
+        json.dump(state, f)
 
 
 def load_bds_blacklist(conn: sqlite3.Connection) -> set[str]:
@@ -608,6 +646,20 @@ def run() -> None:
         bds_results[sym] = "NO"
     print(f"  {len(blacklist)} symbol(s) permanently blacklisted (forced NO, never re-screened)")
 
+    # Definition change: if the committed state predates the current BDS_DEFINITION_VERSION,
+    # discard cached YES/UNKNOWN verdicts for names we will actually re-screen this run (S&P,
+    # non-blacklisted) so they are re-evaluated under the new definition. The permanent
+    # blacklist is never invalidated. R1000-only backfill names keep their cached verdict
+    # until the next quarterly refresh bumps the version.
+    stored_version = _bds_stored_definition_version()
+    definition_changed = stored_version != BDS_DEFINITION_VERSION
+    if definition_changed:
+        stale = [s for s in sp500_syms if s in bds_results and s not in blacklist]
+        for s in stale:
+            del bds_results[s]
+        print(f"  BDS definition changed (v{stored_version} → v{BDS_DEFINITION_VERSION}): "
+              f"cleared {len(stale)} cached S&P verdict(s) for re-screening; blacklist kept.")
+
     def _grade(s: str) -> str:
         return sharia_results.get(s, ("UNKNOWN", ""))[0]
 
@@ -678,22 +730,32 @@ def run() -> None:
                 blacklist.update(s for s, v in fresh.items() if v == "NO")
 
         if completed:
-            _write_bds_refresh(date.today())
+            _write_bds_state(last_refresh=date.today(),
+                             definition_version=BDS_DEFINITION_VERSION)
     else:
-        # Off-cycle: only screen brand-new index-relevant names with no verdict yet (e.g. a
-        # new S&P member added mid-quarter). Everything else carries forward unchanged.
+        # Off-cycle: screen names with no current verdict — normally just brand-new
+        # index-relevant names (e.g. a new S&P member added mid-quarter), but after a
+        # definition change this also covers every S&P name whose stale verdict was just
+        # invalidated above. Everything with a live verdict carries forward unchanged.
         targets = {
             s: sp500.get(s, s) for s in sp500_syms
             if s not in blacklist and _grade(s) != "F" and not bds_results.get(s)
         }
         if targets:
-            print(f"  BDS refresh not due (last refresh: {last_refresh}); web-checking "
-                  f"{len(targets)} new index name(s), carrying the rest forward")
-            fresh, _ = check_bds_web_batch(targets)
+            reason = ("BDS definition change — re-screening"
+                      if definition_changed
+                      else f"BDS refresh not due (last refresh: {last_refresh})")
+            print(f"  {reason}; web-checking {len(targets)} name(s), carrying the rest forward")
+            fresh, ok = check_bds_web_batch(targets)
             bds_results.update(fresh)
+            completed &= ok
             blacklist.update(s for s, v in fresh.items() if v == "NO")
         else:
             print(f"  BDS refresh not due (last refresh: {last_refresh}); nothing new to screen")
+        # Record the new definition version only once the re-screen actually finished, so a
+        # cancelled/incomplete batch retries next run instead of silently locking in gaps.
+        if definition_changed and completed:
+            _write_bds_state(definition_version=BDS_DEFINITION_VERSION)
 
     # Persist the permanent blacklist (newly-confirmed targets + any folded-in cached NOs)
     # to the committed file and the DB mirror.
