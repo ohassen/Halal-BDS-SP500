@@ -51,6 +51,10 @@ ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
 ALPACA_KEY = os.environ["ALPACA_INDEX_API_KEY"]
 ALPACA_SECRET = os.environ["ALPACA_INDEX_API_SECRET"]
 ALPACA_PAPER = os.environ.get("ALPACA_PAPER", "true").lower() == "true"
+# SCAN_MODE=bds_only runs the BDS screen + status update (state machine, force-sells, CSV,
+# reports) against cached Sharia grades, skipping the live HalalScreener re-check loop. Use
+# it to apply a BDS definition change immediately instead of waiting for a scheduled scan.
+BDS_ONLY = os.environ.get("SCAN_MODE", "full").strip().lower() == "bds_only"
 
 GRADE_RANK = {
     "A+": 9, "A": 8, "A-": 7,
@@ -558,31 +562,42 @@ def run() -> None:
     existing = load_constituents(conn)
     sharia_results: dict[str, tuple[str, str]] = {}
 
-    # Sharia is screened as a monthly calendar sweep: on the 1st of each month the
-    # whole universe is due; we re-check up to SHARIA_DAILY_CAP/day (free-tier limit)
-    # over the following ~10 days, then go dormant until the next 1st.
-    # Priority: never-checked first, then oldest last_checked first.
-    due_syms = []
-    for sym in all_syms:
-        row = existing.get(sym)
-        last_checked = row["last_checked"] if row else None
-        if needs_sharia_check(last_checked):
-            due_syms.append((last_checked or "", sym))
-        else:
-            sharia_results[sym] = (row["sharia_grade"], "cached")
+    if BDS_ONLY:
+        # BDS-only run: skip the live HalalScreener sweep and reuse each name's last
+        # recorded grade (UNKNOWN only if never graded). Everything downstream — BDS
+        # screen, state machine, force-sells, CSV/reports — runs normally.
+        for sym in all_syms:
+            row = existing.get(sym)
+            sharia_results[sym] = ((row["sharia_grade"] if row else "UNKNOWN"), "cached")
+        to_check, deferred = [], []
+        print(f"  BDS-only mode: reused cached grades for {len(sharia_results)} symbols "
+              "(no live Sharia checks)")
+    else:
+        # Sharia is screened as a monthly calendar sweep: on the 1st of each month the
+        # whole universe is due; we re-check up to SHARIA_DAILY_CAP/day (free-tier limit)
+        # over the following ~10 days, then go dormant until the next 1st.
+        # Priority: never-checked first, then oldest last_checked first.
+        due_syms = []
+        for sym in all_syms:
+            row = existing.get(sym)
+            last_checked = row["last_checked"] if row else None
+            if needs_sharia_check(last_checked):
+                due_syms.append((last_checked or "", sym))
+            else:
+                sharia_results[sym] = (row["sharia_grade"], "cached")
 
-    due_syms.sort()  # None/"" sorts first → never-checked get priority
-    to_check = [sym for _, sym in due_syms[:SHARIA_DAILY_CAP]]
-    deferred = [sym for _, sym in due_syms[SHARIA_DAILY_CAP:]]
+        due_syms.sort()  # None/"" sorts first → never-checked get priority
+        to_check = [sym for _, sym in due_syms[:SHARIA_DAILY_CAP]]
+        deferred = [sym for _, sym in due_syms[SHARIA_DAILY_CAP:]]
 
-    print(f"  {len(sharia_results)} fresh this month, {len(to_check)} to check, "
-          f"{len(deferred)} deferred to a later run")
+        print(f"  {len(sharia_results)} fresh this month, {len(to_check)} to check, "
+              f"{len(deferred)} deferred to a later run")
 
-    # Carry forward the existing grade for deferred symbols (still valid until their
-    # monthly slot comes up); UNKNOWN only if there is no grade on record at all.
-    for sym in deferred:
-        row = existing.get(sym)
-        sharia_results[sym] = (row["sharia_grade"] if row else "UNKNOWN", "deferred")
+        # Carry forward the existing grade for deferred symbols (still valid until their
+        # monthly slot comes up); UNKNOWN only if there is no grade on record at all.
+        for sym in deferred:
+            row = existing.get(sym)
+            sharia_results[sym] = (row["sharia_grade"] if row else "UNKNOWN", "deferred")
 
     for i, sym in enumerate(to_check, 1):
         grade, status = check_sharia(sym)
@@ -618,7 +633,7 @@ def run() -> None:
     # Refresh the progress report every run (cold start, mid-sweep, or idle) so it never
     # looks stuck. `deferred` are names due this month but not reached this run.
     _write_sharia_progress(conn, len(all_syms), len(to_check), len(deferred), len(ungraded_remaining))
-    if ungraded_remaining:
+    if ungraded_remaining and not BDS_ONLY:
         conn.close()
         print(
             f"Cold start: {len(to_check)} graded this run, {len(ungraded_remaining)} "
