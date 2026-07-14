@@ -266,29 +266,38 @@ def check_bds_web_batch(targets: dict[str, str]) -> tuple[dict[str, str], bool]:
         for sym, name in targets.items()
     ]
 
-    batch = client.messages.batches.create(requests=requests_payload)
-    print(f"  BDS batch {batch.id} created ({len(requests_payload)} requests); polling…")
+    try:
+        batch = client.messages.batches.create(requests=requests_payload)
+        print(f"  BDS batch {batch.id} created ({len(requests_payload)} requests); polling…")
 
-    deadline = time.time() + BDS_BATCH_MAX_WAIT
-    while client.messages.batches.retrieve(batch.id).processing_status != "ended":
-        if time.time() > deadline:
-            print(f"  WARNING: BDS batch {batch.id} exceeded {BDS_BATCH_MAX_WAIT}s — "
-                  "cancelling and carrying forward cached status.")
-            try:
-                client.messages.batches.cancel(batch.id)
-            except Exception as e:
-                print(f"  (batch cancel failed: {e})")
-            return {}, False
-        time.sleep(BDS_BATCH_POLL_S)
+        deadline = time.time() + BDS_BATCH_MAX_WAIT
+        while client.messages.batches.retrieve(batch.id).processing_status != "ended":
+            if time.time() > deadline:
+                print(f"  WARNING: BDS batch {batch.id} exceeded {BDS_BATCH_MAX_WAIT}s — "
+                      "cancelling and carrying forward cached status.")
+                try:
+                    client.messages.batches.cancel(batch.id)
+                except Exception as e:
+                    print(f"  (batch cancel failed: {e})")
+                return {}, False
+            time.sleep(BDS_BATCH_POLL_S)
 
-    results: dict[str, str] = {}
-    for r in client.messages.batches.results(batch.id):
-        sym = r.custom_id[len("bds-"):]
-        if r.result.type == "succeeded":
-            results[sym] = _parse_bds_verdict(r.result.message)
-        else:
-            print(f"  BDS request for {sym} did not succeed ({r.result.type}); UNKNOWN")
-            results[sym] = "UNKNOWN"
+        results: dict[str, str] = {}
+        for r in client.messages.batches.results(batch.id):
+            sym = r.custom_id[len("bds-"):]
+            if r.result.type == "succeeded":
+                results[sym] = _parse_bds_verdict(r.result.message)
+            else:
+                print(f"  BDS request for {sym} did not succeed ({r.result.type}); UNKNOWN")
+                results[sym] = "UNKNOWN"
+    except anthropic.APIError as e:
+        # A quota block, rate limit, or other API error must not crash the whole scan —
+        # the daily rebuild and force-sells still need to run. Carry forward cached BDS
+        # status (completed=False) so no refresh/definition marker is written and the
+        # screen retries on a later run once the API is reachable again.
+        print(f"  WARNING: BDS batch failed ({type(e).__name__}: {e}); "
+              "carrying forward cached status and skipping this screen.")
+        return {}, False
 
     targeted = sum(1 for v in results.values() if v == "NO")
     unknown = sum(1 for v in results.values() if v == "UNKNOWN")
