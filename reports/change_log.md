@@ -2,11 +2,11 @@
 
 > **Disclaimer:** This index is published for informational purposes only and does not constitute financial advice. Past performance does not guarantee future results.
 
-_Last updated: 2026-07-17 | Active: 501 | Warned: 29_
+_Last updated: 2026-07-18 | Active: 501 | Warned: 29_
 
 ---
 
-## 2026-07-17 (Constituent Scan)
+## 2026-07-18 (Constituent Scan)
 
 ### Added (15)
 | Symbol | Old Grade | New Grade | BDS |
