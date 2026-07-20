@@ -2,11 +2,11 @@
 
 > **Disclaimer:** This index is published for informational purposes only and does not constitute financial advice. Past performance does not guarantee future results.
 
-_Last updated: 2026-07-19 | Active: 501 | Warned: 29_
+_Last updated: 2026-07-20 | Active: 500 | Warned: 29_
 
 ---
 
-## 2026-07-19 (Constituent Scan)
+## 2026-07-20 (Constituent Scan)
 
 ### Added (15)
 | Symbol | Old Grade | New Grade | BDS |
@@ -27,10 +27,11 @@ _Last updated: 2026-07-19 | Active: 501 | Warned: 29_
 | SPCX | - | A | YES |
 | XE | - | UNKNOWN | UNKNOWN |
 
-### Removed (3) — Force Sold
+### Removed (4) — Force Sold
 | Symbol | Reason |
 |--------|--------|
 | AME | bds_NO |
+| APO | sharia_F |
 | ARES | sharia_F |
 | HD | bds_NO |
 
@@ -40,10 +41,9 @@ _Last updated: 2026-07-19 | Active: 501 | Warned: 29_
 | ALM | C+ |
 | AMG | C+ |
 
-### Warning Cleared (3)
+### Warning Cleared (2)
 | Symbol | Grade |
 |--------|-------|
-| APO | B |
 | ATO | B+ |
 | AGCO | B |
 
