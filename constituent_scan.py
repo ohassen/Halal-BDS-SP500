@@ -82,7 +82,7 @@ BDS_STATE_FILE = "index/bds_state.json"
 # stored in BDS_STATE_FILE trails this, cached YES/UNKNOWN verdicts are invalidated (the
 # permanent blacklist is never touched) so the universe is re-screened under the new
 # definition on the next run instead of waiting for the next quarterly refresh.
-BDS_DEFINITION_VERSION = 2
+BDS_DEFINITION_VERSION = 3
 # A confirmed BDS target (verdict NO) is blacklisted permanently — never re-screened, never
 # re-admitted. The committed JSON file is the durable source of truth (survives Actions cache
 # loss); the bds_blacklist DB table mirrors it.
@@ -99,21 +99,24 @@ BDS_SYSTEM = (
     "Use the web_search tool to consult authoritative, current sources before deciding — "
     "for example the official BDS movement (bdsmovement.net) campaigns, the American Friends "
     "Service Committee 'Investigate' project (investigate.afsc.org), the UN OHCHR database of "
-    "business enterprises involved in Israeli settlements, Who Profits (whoprofits.org), and "
-    "reputable news coverage of divestment and accountability campaigns (for example 'No Tech "
-    "for Apartheid' / 'No Azure for Apartheid').\n\n"
-    "Treat the company as TARGETED if EITHER criterion holds:\n"
+    "business enterprises involved in Israeli settlements, Who Profits (whoprofits.org), the "
+    "Wikipedia list of multinational companies with R&D centres in Israel, company press "
+    "releases and careers pages, and reputable news coverage.\n\n"
+    "Treat the company as TARGETED if ANY criterion holds:\n"
     "1. It is an explicit, current target of a named BDS boycott or divestment campaign; OR\n"
     "2. There is credible, documented evidence that it is materially complicit in the Israeli "
     "military, the occupation, or the settlement enterprise — for example supplying cloud, AI, "
     "chips, surveillance, or weapons technology to the Israeli military; operating in or "
     "materially servicing illegal settlements; or otherwise appearing in the sources above as "
-    "an occupation-linked entity.\n\n"
-    "Do NOT treat a company as TARGETED merely because it has customers, an office, or R&D in "
-    "Israel with no documented link to the military, the occupation, or the settlements.\n\n"
+    "an occupation-linked entity; OR\n"
+    "3. It operates one or more research & development, engineering, product-development, or "
+    "design centers in Israel — including a center it runs through an acquired Israeli company. "
+    "A presence in Israel that is purely sales, marketing, or distribution does NOT by itself "
+    "make a company TARGETED; the trigger is an R&D/engineering footprint.\n\n"
     "Decide one of:\n"
-    "- TARGETED: meets criterion 1 or 2 above.\n"
-    "- NOT_TARGETED: no credible evidence under either criterion.\n"
+    "- TARGETED: meets criterion 1, 2, or 3 above.\n"
+    "- NOT_TARGETED: no credible evidence under any criterion (e.g. no Israel presence, or a "
+    "sales/marketing office only).\n"
     "- UNKNOWN: genuinely indeterminate after searching.\n\n"
     "End your response with exactly one line containing your verdict:\n"
     "VERDICT: TARGETED  (or)  VERDICT: NOT_TARGETED  (or)  VERDICT: UNKNOWN"
@@ -254,9 +257,10 @@ def check_bds_web_batch(targets: dict[str, str]) -> tuple[dict[str, str], bool]:
                     "role": "user",
                     "content": (
                         f"Company: {name} (ticker {sym}). Is this company a BDS concern — "
-                        "either an explicit target of a boycott/divestment campaign, or "
-                        "materially complicit in the Israeli military, occupation, or "
-                        "settlements? Search the web, then give your verdict."
+                        "an explicit target of a boycott/divestment campaign, materially "
+                        "complicit in the Israeli military/occupation/settlements, OR "
+                        "operating an R&D/engineering/development center in Israel (a "
+                        "sales-only office does not count)? Search the web, then give your verdict."
                     ),
                 }],
                 "tools": [{"type": "web_search_20260209", "name": "web_search", "max_uses": 5}],
