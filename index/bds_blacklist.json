@@ -1,8 +1,18 @@
 [
   {
+    "symbol": "A",
+    "company": "Agilent Technologies",
+    "date": "2026-07-22"
+  },
+  {
     "symbol": "AAPL",
     "company": "Apple Inc.",
     "date": "2026-07-11"
+  },
+  {
+    "symbol": "ABBV",
+    "company": "AbbVie",
+    "date": "2026-07-22"
   },
   {
     "symbol": "ABNB",
@@ -10,9 +20,49 @@
     "date": "2026-07-08"
   },
   {
+    "symbol": "ABT",
+    "company": "Abbott Laboratories",
+    "date": "2026-07-22"
+  },
+  {
+    "symbol": "ACN",
+    "company": "Accenture",
+    "date": "2026-07-22"
+  },
+  {
+    "symbol": "ADBE",
+    "company": "Adobe Inc.",
+    "date": "2026-07-22"
+  },
+  {
+    "symbol": "ADI",
+    "company": "Analog Devices",
+    "date": "2026-07-22"
+  },
+  {
+    "symbol": "ADSK",
+    "company": "Autodesk",
+    "date": "2026-07-22"
+  },
+  {
     "symbol": "AKAM",
     "company": "Akamai Technologies",
     "date": "2026-07-08"
+  },
+  {
+    "symbol": "ALGN",
+    "company": "Align Technology",
+    "date": "2026-07-22"
+  },
+  {
+    "symbol": "AMAT",
+    "company": "Applied Materials",
+    "date": "2026-07-22"
+  },
+  {
+    "symbol": "AMD",
+    "company": "Advanced Micro Devices",
+    "date": "2026-07-22"
   },
   {
     "symbol": "AME",
@@ -20,9 +70,24 @@
     "date": "2026-07-08"
   },
   {
+    "symbol": "AMGN",
+    "company": "Amgen",
+    "date": "2026-07-22"
+  },
+  {
     "symbol": "AMZN",
     "company": "Amazon",
     "date": "2026-07-08"
+  },
+  {
+    "symbol": "APP",
+    "company": "AppLovin",
+    "date": "2026-07-22"
+  },
+  {
+    "symbol": "AVGO",
+    "company": "Broadcom",
+    "date": "2026-07-22"
   },
   {
     "symbol": "AXON",
@@ -38,6 +103,11 @@
     "symbol": "BKNG",
     "company": "Booking Holdings",
     "date": "2026-07-09"
+  },
+  {
+    "symbol": "BSX",
+    "company": "Boston Scientific",
+    "date": "2026-07-22"
   },
   {
     "symbol": "BWXT",
@@ -60,9 +130,39 @@
     "date": "2026-07-08"
   },
   {
+    "symbol": "CDNS",
+    "company": "Cadence Design Systems",
+    "date": "2026-07-22"
+  },
+  {
+    "symbol": "CGNX",
+    "company": "CGNX",
+    "date": "2026-07-22"
+  },
+  {
+    "symbol": "CIEN",
+    "company": "Ciena",
+    "date": "2026-07-22"
+  },
+  {
+    "symbol": "COIN",
+    "company": "Coinbase",
+    "date": "2026-07-22"
+  },
+  {
     "symbol": "COKE",
     "company": "COKE",
     "date": "2026-07-08"
+  },
+  {
+    "symbol": "CRM",
+    "company": "Salesforce",
+    "date": "2026-07-22"
+  },
+  {
+    "symbol": "CRWD",
+    "company": "CrowdStrike",
+    "date": "2026-07-22"
   },
   {
     "symbol": "CSCO",
@@ -80,6 +180,11 @@
     "date": "2026-07-08"
   },
   {
+    "symbol": "DHR",
+    "company": "Danaher Corporation",
+    "date": "2026-07-22"
+  },
+  {
     "symbol": "DOX",
     "company": "DOX",
     "date": "2026-07-09"
@@ -95,9 +200,29 @@
     "date": "2026-07-08"
   },
   {
+    "symbol": "EPAM",
+    "company": "EPAM",
+    "date": "2026-07-22"
+  },
+  {
+    "symbol": "EW",
+    "company": "Edwards Lifesciences",
+    "date": "2026-07-22"
+  },
+  {
+    "symbol": "FTNT",
+    "company": "Fortinet",
+    "date": "2026-07-22"
+  },
+  {
     "symbol": "GD",
     "company": "General Dynamics",
     "date": "2026-07-11"
+  },
+  {
+    "symbol": "GILD",
+    "company": "Gilead Sciences",
+    "date": "2026-07-22"
   },
   {
     "symbol": "GIS",
@@ -130,6 +255,11 @@
     "date": "2026-07-08"
   },
   {
+    "symbol": "HON",
+    "company": "Honeywell Technologies",
+    "date": "2026-07-22"
+  },
+  {
     "symbol": "HPQ",
     "company": "HP Inc.",
     "date": "2026-07-08"
@@ -145,6 +275,21 @@
     "date": "2026-07-08"
   },
   {
+    "symbol": "INTU",
+    "company": "Intuit",
+    "date": "2026-07-22"
+  },
+  {
+    "symbol": "JNJ",
+    "company": "Johnson & Johnson",
+    "date": "2026-07-22"
+  },
+  {
+    "symbol": "KLAC",
+    "company": "KLA Corporation",
+    "date": "2026-07-22"
+  },
+  {
     "symbol": "KO",
     "company": "Coca-Cola Company (The)",
     "date": "2026-07-08"
@@ -153,6 +298,11 @@
     "symbol": "LMT",
     "company": "Lockheed Martin",
     "date": "2026-07-08"
+  },
+  {
+    "symbol": "MA",
+    "company": "Mastercard",
+    "date": "2026-07-22"
   },
   {
     "symbol": "MCD",
@@ -165,14 +315,59 @@
     "date": "2026-07-08"
   },
   {
+    "symbol": "MDT",
+    "company": "Medtronic",
+    "date": "2026-07-22"
+  },
+  {
+    "symbol": "META",
+    "company": "Meta Platforms",
+    "date": "2026-07-22"
+  },
+  {
+    "symbol": "MMM",
+    "company": "3M",
+    "date": "2026-07-22"
+  },
+  {
+    "symbol": "MRK",
+    "company": "Merck & Co.",
+    "date": "2026-07-22"
+  },
+  {
+    "symbol": "MSFT",
+    "company": "Microsoft",
+    "date": "2026-07-22"
+  },
+  {
     "symbol": "MSI",
     "company": "Motorola Solutions",
     "date": "2026-07-08"
   },
   {
+    "symbol": "MU",
+    "company": "Micron Technology",
+    "date": "2026-07-22"
+  },
+  {
     "symbol": "NOC",
     "company": "Northrop Grumman",
     "date": "2026-07-08"
+  },
+  {
+    "symbol": "NOW",
+    "company": "ServiceNow",
+    "date": "2026-07-22"
+  },
+  {
+    "symbol": "NVDA",
+    "company": "Nvidia",
+    "date": "2026-07-22"
+  },
+  {
+    "symbol": "NXPI",
+    "company": "NXP Semiconductors",
+    "date": "2026-07-22"
   },
   {
     "symbol": "ORCL",
@@ -200,9 +395,19 @@
     "date": "2026-07-09"
   },
   {
+    "symbol": "QCOM",
+    "company": "Qualcomm",
+    "date": "2026-07-22"
+  },
+  {
     "symbol": "RTX",
     "company": "RTX Corporation",
     "date": "2026-07-08"
+  },
+  {
+    "symbol": "S",
+    "company": "S",
+    "date": "2026-07-22"
   },
   {
     "symbol": "SBUX",
@@ -210,9 +415,44 @@
     "date": "2026-07-08"
   },
   {
+    "symbol": "SNDK",
+    "company": "Sandisk",
+    "date": "2026-07-22"
+  },
+  {
+    "symbol": "SNOW",
+    "company": "SNOW",
+    "date": "2026-07-22"
+  },
+  {
+    "symbol": "SNPS",
+    "company": "Synopsys",
+    "date": "2026-07-22"
+  },
+  {
+    "symbol": "STX",
+    "company": "Seagate Technology",
+    "date": "2026-07-22"
+  },
+  {
+    "symbol": "SYK",
+    "company": "Stryker Corporation",
+    "date": "2026-07-22"
+  },
+  {
     "symbol": "TGT",
     "company": "Target Corporation",
     "date": "2026-07-08"
+  },
+  {
+    "symbol": "TMO",
+    "company": "Thermo Fisher Scientific",
+    "date": "2026-07-22"
+  },
+  {
+    "symbol": "TRMB",
+    "company": "Trimble Inc.",
+    "date": "2026-07-22"
   },
   {
     "symbol": "TSLA",
@@ -220,14 +460,34 @@
     "date": "2026-07-08"
   },
   {
+    "symbol": "TTD",
+    "company": "Trade Desk (The)",
+    "date": "2026-07-22"
+  },
+  {
+    "symbol": "TXN",
+    "company": "Texas Instruments",
+    "date": "2026-07-22"
+  },
+  {
     "symbol": "TXT",
     "company": "Textron",
     "date": "2026-07-08"
   },
   {
+    "symbol": "U",
+    "company": "U",
+    "date": "2026-07-22"
+  },
+  {
     "symbol": "UBER",
     "company": "Uber",
     "date": "2026-07-09"
+  },
+  {
+    "symbol": "WDC",
+    "company": "Western Digital",
+    "date": "2026-07-22"
   },
   {
     "symbol": "WFC",
@@ -245,8 +505,18 @@
     "date": "2026-07-08"
   },
   {
+    "symbol": "ZBRA",
+    "company": "Zebra Technologies",
+    "date": "2026-07-22"
+  },
+  {
     "symbol": "ZION",
     "company": "ZION",
     "date": "2026-07-09"
+  },
+  {
+    "symbol": "ZS",
+    "company": "ZS",
+    "date": "2026-07-22"
   }
 ]
