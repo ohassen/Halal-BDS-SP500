@@ -82,7 +82,7 @@ BDS_STATE_FILE = "index/bds_state.json"
 # stored in BDS_STATE_FILE trails this, cached YES/UNKNOWN verdicts are invalidated (the
 # permanent blacklist is never touched) so the universe is re-screened under the new
 # definition on the next run instead of waiting for the next quarterly refresh.
-BDS_DEFINITION_VERSION = 4
+BDS_DEFINITION_VERSION = 3
 # A confirmed BDS target (verdict NO) is blacklisted permanently — never re-screened, never
 # re-admitted. The committed JSON file is the durable source of truth (survives Actions cache
 # loss); the bds_blacklist DB table mirrors it.
