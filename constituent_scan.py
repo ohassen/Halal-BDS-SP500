@@ -82,7 +82,7 @@ BDS_STATE_FILE = "index/bds_state.json"
 # stored in BDS_STATE_FILE trails this, cached YES/UNKNOWN verdicts are invalidated (the
 # permanent blacklist is never touched) so the universe is re-screened under the new
 # definition on the next run instead of waiting for the next quarterly refresh.
-BDS_DEFINITION_VERSION = 3
+BDS_DEFINITION_VERSION = 4
 # A confirmed BDS target (verdict NO) is blacklisted permanently — never re-screened, never
 # re-admitted. The committed JSON file is the durable source of truth (survives Actions cache
 # loss); the bds_blacklist DB table mirrors it.
@@ -100,8 +100,9 @@ BDS_SYSTEM = (
     "for example the official BDS movement (bdsmovement.net) campaigns, the American Friends "
     "Service Committee 'Investigate' project (investigate.afsc.org), the UN OHCHR database of "
     "business enterprises involved in Israeli settlements, Who Profits (whoprofits.org), the "
-    "Wikipedia list of multinational companies with R&D centres in Israel, company press "
-    "releases and careers pages, and reputable news coverage.\n\n"
+    "Wikipedia list of multinational companies with R&D centres in Israel, SEC 13F/13G "
+    "institutional ownership filings, company press releases and careers pages, and reputable "
+    "news coverage.\n\n"
     "Treat the company as TARGETED if ANY criterion holds:\n"
     "1. It is an explicit, current target of a named BDS boycott or divestment campaign; OR\n"
     "2. There is credible, documented evidence that it is materially complicit in the Israeli "
@@ -112,11 +113,19 @@ BDS_SYSTEM = (
     "3. It operates one or more research & development, engineering, product-development, or "
     "design centers in Israel — including a center it runs through an acquired Israeli company. "
     "A presence in Israel that is purely sales, marketing, or distribution does NOT by itself "
-    "make a company TARGETED; the trigger is an R&D/engineering footprint.\n\n"
+    "make a company TARGETED; the trigger is an R&D/engineering footprint; OR\n"
+    "4. It is a named, major, or disclosed institutional shareholder of an Israeli weapons "
+    "manufacturer or defense contractor (for example Elbit Systems) or of another company "
+    "already confirmed as a BDS military-embargo target, as reported by name in sources such "
+    "as SEC 13F/13G filings, AFSC Investigate, or BDS movement divestment campaign coverage. "
+    "Merely operating a broad-market index fund or ETF that incidentally holds such a company "
+    "as part of standard market-cap-weighted exposure does NOT by itself make a company "
+    "TARGETED — the trigger is being individually named as a significant, disclosed "
+    "shareholder of a confirmed military-embargo target, not passive incidental exposure.\n\n"
     "Decide one of:\n"
-    "- TARGETED: meets criterion 1, 2, or 3 above.\n"
+    "- TARGETED: meets criterion 1, 2, 3, or 4 above.\n"
     "- NOT_TARGETED: no credible evidence under any criterion (e.g. no Israel presence, or a "
-    "sales/marketing office only).\n"
+    "sales/marketing office only, or only incidental passive index exposure).\n"
     "- UNKNOWN: genuinely indeterminate after searching.\n\n"
     "End your response with exactly one line containing your verdict:\n"
     "VERDICT: TARGETED  (or)  VERDICT: NOT_TARGETED  (or)  VERDICT: UNKNOWN"
@@ -258,7 +267,9 @@ def check_bds_web_batch(targets: dict[str, str]) -> tuple[dict[str, str], bool]:
                     "content": (
                         f"Company: {name} (ticker {sym}). Is this company a BDS concern — "
                         "an explicit target of a boycott/divestment campaign, materially "
-                        "complicit in the Israeli military/occupation/settlements, OR "
+                        "complicit in the Israeli military/occupation/settlements, a named "
+                        "major shareholder of an Israeli defense contractor or weapons "
+                        "manufacturer (not merely incidental passive index exposure), OR "
                         "operating an R&D/engineering/development center in Israel (a "
                         "sales-only office does not count)? Search the web, then give your verdict."
                     ),
