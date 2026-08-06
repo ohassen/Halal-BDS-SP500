@@ -2,7 +2,7 @@
 
 **All 1018 symbols screened.** Monthly sweep complete — next sweep begins 2026-09-01.
 
-_Last updated: 2026-08-05 (+0 today)_
+_Last updated: 2026-08-06 (+0 today)_
 
 | Symbol | Grade | Checked |
 |--------|-------|--------|
