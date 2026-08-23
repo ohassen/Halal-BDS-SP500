@@ -67,6 +67,13 @@ MAX_INDEX_SIZE = 500
 SHARIA_RATE_LIMIT_S = 6.0   # 10 requests/minute free tier limit
 SHARIA_DAILY_CAP = 99       # one under the ~100/day HalalScreener free-tier limit
 SHARIA_MAX_RETRIES = 3
+# Manual correction for a Sharia grade between monthly sweep windows -- e.g. a name that
+# turned non-compliant mid-month, or a cached grade that looks wrong/stale relative to a
+# fresh manual check. Unlike the BDS blacklist this is NOT permanent: it only applies while
+# the cached grade came from "cached"/"deferred" carry-forward (no live check happened this
+# run), so it never advances last_checked and is automatically superseded the next time the
+# monthly sweep genuinely re-checks the symbol. Remove the entry once satisfied it's stale.
+SHARIA_OVERRIDES_FILE = "index/sharia_overrides.json"
 
 # BDS screening: web-search-grounded classification via the Message Batches API,
 # refreshed once per calendar quarter (aligned to S&P reconstitution: Mar/Jun/Sep/Dec).
@@ -450,6 +457,27 @@ def needs_sharia_check(last_checked: str | None) -> bool:
         return True
 
 
+def load_sharia_overrides() -> dict[str, str]:
+    """Return {symbol: forced_grade} from the committed manual-override file.
+
+    Applied only to symbols carried forward as "cached"/"deferred" this run (see caller) --
+    never to a fresh live check -- so it never touches last_checked and is automatically
+    superseded the next time the monthly sweep genuinely re-checks the symbol.
+    """
+    if not os.path.exists(SHARIA_OVERRIDES_FILE):
+        return {}
+    try:
+        with open(SHARIA_OVERRIDES_FILE) as f:
+            entries = json.load(f)
+    except (json.JSONDecodeError, ValueError):
+        return {}
+    return {
+        e["symbol"]: e["grade"]
+        for e in entries
+        if isinstance(e, dict) and e.get("symbol") and e.get("grade")
+    }
+
+
 def _quarter(d: date) -> tuple[int, int]:
     """(year, quarter-index 0-3) — gates the BDS screen to once per calendar quarter."""
     return (d.year, (d.month - 1) // 3)
@@ -632,9 +660,21 @@ def run() -> None:
 
     print(f"  Checked/cached {len(sharia_results)} symbols")
 
+    # Manual grade overrides: only shadow a carried-forward ("cached"/"deferred") value --
+    # never a grade this run just fetched live -- so an override can force a correction
+    # right now without freezing the symbol out of its normal monthly re-check.
+    sharia_overrides = load_sharia_overrides()
+    overridden = [sym for sym, (_, src) in sharia_results.items()
+                  if sym in sharia_overrides and src in ("cached", "deferred")]
+    for sym in overridden:
+        sharia_results[sym] = (sharia_overrides[sym], "override")
+    if overridden:
+        print(f"  {len(overridden)} symbol(s) manually overridden: "
+              f"{[(s, sharia_overrides[s]) for s in overridden]}")
+
     # Persist freshly-checked grades immediately so later runs skip them this month
     for sym, (grade, source) in sharia_results.items():
-        if source not in ("cached", "deferred"):
+        if source not in ("cached", "deferred", "override"):
             conn.execute(
                 """INSERT INTO constituents (symbol, sharia_grade, last_checked)
                    VALUES (?, ?, ?)
@@ -901,7 +941,7 @@ def run() -> None:
     event_rows: list[tuple] = []
 
     for sym in all_syms:
-        grade, _ = sharia_results.get(sym, ("UNKNOWN", "UNKNOWN"))
+        grade, sharia_source = sharia_results.get(sym, ("UNKNOWN", "UNKNOWN"))
         bds = bds_results.get(sym, "UNKNOWN")
         status, reason = classifications[sym]
         cap = market_caps.get(sym, 0)
@@ -940,6 +980,13 @@ def run() -> None:
 
         removed_date = TODAY if status == "REMOVED" else (old_row["removed_date"] if old_row else None)
         added_date = (old_row["added_date"] if old_row else None) or (TODAY if status != "REMOVED" else None)
+        # Only a genuine live check this run advances last_checked -- a cached/deferred/
+        # override carry-forward must not, or it would mask the symbol from next month's
+        # due-check and silently corrupt the monthly sweep's cadence.
+        last_checked = (
+            TODAY if sharia_source not in ("cached", "deferred", "override")
+            else (old_row["last_checked"] if old_row else TODAY)
+        )
 
         conn.execute(
             """INSERT INTO constituents
@@ -956,7 +1003,7 @@ def run() -> None:
                  warning_reason=excluded.warning_reason,
                  removed_date=excluded.removed_date,
                  last_checked=excluded.last_checked""",
-            (sym, company, cap, weight, grade, bds, status, reason, added_date, removed_date, TODAY),
+            (sym, company, cap, weight, grade, bds, status, reason, added_date, removed_date, last_checked),
         )
 
         # Compliance history

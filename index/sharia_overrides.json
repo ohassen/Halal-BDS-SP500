@@ -1,0 +1,9 @@
+[
+  {
+    "symbol": "UNH",
+    "company": "UnitedHealth Group",
+    "grade": "F",
+    "date": "2026-08-23",
+    "reason": "HalalScreener.app shows F/Not Halal (AAOIFI Standard 21, screened 2026-08-20); our last cached grade (B+, checked 2026-08-22 via the API) is stale/inconsistent with the live tool. Forced to F pending the next monthly live re-check."
+  }
+]
