@@ -2,7 +2,7 @@
 
 **All 503 symbols screened.** Monthly sweep complete — next sweep begins 2026-09-01.
 
-_Last updated: 2026-08-23 (+0 today)_
+_Last updated: 2026-08-24 (+0 today)_
 
 | Symbol | Grade | Checked |
 |--------|-------|--------|
@@ -950,7 +950,7 @@ _Last updated: 2026-08-23 (+0 today)_
 | UHS | ❌ F | 2026-08-23 |
 | UI | ✅ A+ | 2026-08-12 |
 | ULTA | ✅ A | 2026-08-23 |
-| UNH | ⚠️ B+ | 2026-08-23 |
+| UNH | ❌ F | 2026-08-23 |
 | UNM | ❌ F | 2026-08-12 |
 | UNP | ✅ A | 2026-08-23 |
 | UPS | ⚠️ B+ | 2026-08-23 |

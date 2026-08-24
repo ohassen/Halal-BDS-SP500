@@ -2,15 +2,12 @@
 
 > **Disclaimer:** This index is published for informational purposes only and does not constitute financial advice. Past performance does not guarantee future results.
 
-_Last updated: 2026-08-23 | Active: 438 | Warned: 28_
+_Last updated: 2026-08-24 | Active: 438 | Warned: 28_
 
 ---
 
-## 2026-08-23 (Constituent Scan)
+## 2026-08-24 (Constituent Scan)
 
-### Removed (1) — Force Sold
-| Symbol | Reason |
-|--------|--------|
-| UNH | sharia_F |
+_No changes this month._
 
 ---
