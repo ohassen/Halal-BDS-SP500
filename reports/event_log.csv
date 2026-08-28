@@ -3047,3 +3047,4 @@ Date,Symbol,Company,EventType,OldValue,NewValue,Reason
 2026-08-27,COO,Cooper Companies (The),INDEX_ADDED,,ACTIVE,
 2026-08-27,DAL,Delta Air Lines,INDEX_ADDED,,ACTIVE,
 2026-08-27,PHM,PulteGroup,INDEX_ADDED,,ACTIVE,
+2026-08-28,AZO,AutoZone,INDEX_REMOVED,ACTIVE,ACTIVE,
