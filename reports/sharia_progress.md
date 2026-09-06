@@ -1,8 +1,8 @@
 # Sharia Screening Progress
 
-**Monthly sweep in progress:** 495 / 503 re-checked this month — 8 still due
+**All 503 symbols screened.** Monthly sweep complete — next sweep begins 2026-10-01.
 
-_Last updated: 2026-09-05 (+99 today)_
+_Last updated: 2026-09-06 (+8 today)_
 
 | Symbol | Grade | Checked |
 |--------|-------|--------|
@@ -1024,20 +1024,20 @@ _Last updated: 2026-09-05 (+99 today)_
 | WY | ❌ F | 2026-09-05 |
 | WYNN | ❌ F | 2026-09-05 |
 | XE | ❓ UNKNOWN | 2026-08-12 |
-| XEL | ❌ F | 2026-08-23 |
-| XOM | ✅ A+ | 2026-08-23 |
+| XEL | ❌ F | 2026-09-06 |
+| XOM | ✅ A+ | 2026-09-06 |
 | XP | ❌ F | 2026-08-12 |
 | XPO | ✅ A | 2026-08-12 |
 | XRAY | ❌ F | 2026-08-12 |
-| XYL | ✅ A | 2026-08-23 |
-| XYZ | ⚠️ B | 2026-08-23 |
+| XYL | ✅ A | 2026-09-06 |
+| XYZ | ⚠️ B+ | 2026-09-06 |
 | YETI | ✅ A | 2026-08-12 |
-| YUM | ⚠️ B | 2026-08-23 |
+| YUM | ⚠️ B | 2026-09-06 |
 | Z | ❓ UNKNOWN | 2026-08-12 |
-| ZBH | ✅ A+ | 2026-08-23 |
-| ZBRA | ⚠️ B+ | 2026-08-23 |
+| ZBH | ✅ A+ | 2026-09-06 |
+| ZBRA | ✅ A | 2026-09-06 |
 | ZG | ✅ A | 2026-08-12 |
 | ZION | ❌ F | 2026-08-12 |
 | ZM | ❌ F | 2026-08-12 |
 | ZS | ⚠️ B | 2026-08-12 |
-| ZTS | ❌ F | 2026-08-23 |
+| ZTS | ❌ F | 2026-09-06 |

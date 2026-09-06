@@ -3234,3 +3234,6 @@ Date,Symbol,Company,EventType,OldValue,NewValue,Reason
 2026-09-05,WY,Weyerhaeuser,STATUS_CHANGE,ACTIVE,REMOVED,sharia_F
 2026-09-05,WY,Weyerhaeuser,GRADE_CHANGE,B+,F,
 2026-09-05,WDAY,"Workday, Inc.",GRADE_CHANGE,B,A,
+2026-09-06,AZO,AutoZone,INDEX_ADDED,,ACTIVE,
+2026-09-06,XYZ,"Block, Inc.",GRADE_CHANGE,B,B+,
+2026-09-06,ZBRA,Zebra Technologies,GRADE_CHANGE,B+,A,
