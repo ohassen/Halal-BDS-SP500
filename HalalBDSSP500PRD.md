@@ -68,7 +68,7 @@ Endpoint: `GET https://halalscreener.app/api/v1/screen?symbol=TICKER`
 Header: `Authorization: Bearer {HALALSCREENER_API_KEY}`
 
 ### BDS Compliance
-Claude Opus 4.8 **with web search**, one grounded request per symbol via the Anthropic
+Claude Opus 5 **with web search**, one grounded request per symbol via the Anthropic
 Message Batches API (authoritative sources: bdsmovement.net campaigns, AFSC Investigate,
 reputable news). Stored as `bds_status: YES | NO | UNKNOWN` (YES = not targeted). Cache in
 SQLite + the committed CSV; re-screen once per calendar quarter (Mar/Jun/Sep/Dec) and screen
@@ -190,7 +190,7 @@ CREATE TABLE bds_blacklist (
 3. **Sharia check** — monthly calendar sweep: re-check every symbol not yet screened this
    calendar month via HalalScreener (≤`SHARIA_DAILY_CAP` (99)/day, ~6s between calls), ~10
    days to cover the ~1,000-name universe, then dormant until the next 1st.
-4. **BDS check** — once per calendar quarter (Mar/Jun/Sep/Dec), classify via Claude Opus 4.8
+4. **BDS check** — once per calendar quarter (Mar/Jun/Sep/Dec), classify via Claude Opus 5
    **with web search**, one grounded request per symbol through the Anthropic Message Batches
    API. Scoped to ~500: re-screen the S&P 500 (minus permanent failures), then backfill-screen
    only enough top-market-cap Russell 1000 candidates to fill the shortfall (Phase A → size

@@ -31,7 +31,7 @@ The index rebuild, force-sells, BDS check, and CSV commit run **every day** thro
 | BDS = UNKNOWN | Treated as compliant — no action |
 
 - **Sharia grade** comes from the [HalalScreener](https://halalscreener.app) API.
-- **BDS status** (whether a company is an explicit target of a Boycott, Divestment, Sanctions campaign) is classified by Claude Opus 4.8 **with web search** — one grounded request per symbol via the Anthropic Message Batches API — re-screened once per quarter (Mar/Jun/Sep/Dec). `UNKNOWN` is treated as compliant, since the vast majority of companies are simply not named in any campaign.
+- **BDS status** (whether a company is an explicit target of a Boycott, Divestment, Sanctions campaign) is classified by Claude Opus 5 **with web search** — one grounded request per symbol via the Anthropic Message Batches API — re-screened once per quarter (Mar/Jun/Sep/Dec). `UNKNOWN` is treated as compliant, since the vast majority of companies are simply not named in any campaign.
 - **Scoped screening:** each quarter only re-checks roughly the 500 index names — the S&P 500 plus just enough Russell 1000 backfill candidates (highest market cap first) to fill vacated slots — instead of the full ~1,000-name universe. Lower-cap pool names that can't reach the index are never screened, which keeps the per-quarter cost near ~500 grounded requests.
 - **Permanent blacklist:** once a company is confirmed targeted (`BDS = NO`) it is blacklisted **forever** — recorded in [`index/bds_blacklist.json`](index/bds_blacklist.json) (mirrored in the DB), never re-screened, and never re-admitted to the index even if a later check would clear it. A quarter therefore screens last quarter's passers plus any new names, and skips known violators.
 
@@ -58,7 +58,7 @@ Create accounts and gather API keys for each service:
 |---|---|---|
 | [Alpaca](https://alpaca.markets) | Brokerage / order execution | Use a **dedicated account**. Start with a paper account (`ALPACA_PAPER=true`) before going live. Fractional/notional trading must be enabled. |
 | [HalalScreener](https://halalscreener.app) | Sharia compliance grades | Free tier ≈ 100 requests/day, 10/min. |
-| [Anthropic API](https://www.anthropic.com) | BDS classification (Claude Opus 4.8 + web search) | Grounded, batched, re-screened quarterly. Has per-call cost; budget accordingly (~tens of $/quarter). |
+| [Anthropic API](https://www.anthropic.com) | BDS classification (Claude Opus 5 + web search) | Grounded, batched, re-screened quarterly. Has per-call cost; budget accordingly (~tens of $/quarter). |
 
 ### 2. Fork and configure the repository
 
@@ -84,7 +84,7 @@ In your fork, go to **Settings → Secrets and variables → Actions** and add:
 | Variable | Default | Description |
 |---|---|---|
 | `ALPACA_PAPER` | `true` | Selects the Alpaca endpoint: `true` = paper, `false` = **live**. Flip to `false` only when you are ready to trade real money. Every run logs the resolved `Trading mode: PAPER/LIVE`. |
-| `BDS_MODEL` | `claude-opus-4-8` | Anthropic model id for the BDS classifier. Any current Claude model id works (e.g. a cheaper tier to reduce cost). |
+| `BDS_MODEL` | `claude-opus-5` | Anthropic model id for the BDS classifier. Any current Claude model id works (e.g. a cheaper tier to reduce cost). |
 
 > The workflows have `permissions: contents: write` so the constituent scan can commit updated artifacts back to the repo. No further token setup is required — the default `GITHUB_TOKEN` is used.
 
@@ -117,7 +117,7 @@ export ALPACA_INDEX_API_SECRET=...
 export HALALSCREENER_API_KEY=...
 export ANTHROPIC_API_KEY=...
 export ALPACA_PAPER=true        # keep paper trading while testing (false = live endpoint)
-export BDS_MODEL=claude-opus-4-8   # optional: choose the BDS classifier model
+export BDS_MODEL=claude-opus-5   # optional: choose the BDS classifier model
 
 python init_db.py        # create index_fund.db (also auto-created by the scripts)
 python constituent_scan.py   # rebuild constituents / refresh compliance
@@ -136,7 +136,7 @@ Key constants you may want to adjust live near the top of the scripts:
 | `SHARIA_DAILY_CAP` | `constituent_scan.py` | `99` | Max Sharia API calls per run (keep under your tier's daily limit) |
 | `SHARIA_RATE_LIMIT_S` | `constituent_scan.py` | `6.0` | Seconds between Sharia API calls (10/min) |
 | `BDS_REFRESH_MONTHS` | `constituent_scan.py` | `{3,6,9,12}` | Calendar months the quarterly BDS web-search re-screen runs (Sharia re-screens monthly via a calendar sweep — no constant) |
-| `BDS_MODEL` | `constituent_scan.py` | `claude-opus-4-8` | Anthropic model for the BDS classifier (overridable via the `BDS_MODEL` env/repo variable) |
+| `BDS_MODEL` | `constituent_scan.py` | `claude-opus-5` | Anthropic model for the BDS classifier (overridable via the `BDS_MODEL` env/repo variable) |
 | `BDS_BACKFILL_BUFFER` | `constituent_scan.py` | `25` | Extra Russell 1000 backfill candidates screened beyond the exact shortfall, so names that come back targeted don't leave the index short |
 | `MIN_CASH` | `daily_invest.py` | `20.0` | Skip the daily buy if account cash is below this |
 | `MIN_NOTIONAL` | `daily_invest.py` | `1.0` | Minimum dollar amount per order |
