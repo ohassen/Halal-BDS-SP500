@@ -3237,3 +3237,4 @@ Date,Symbol,Company,EventType,OldValue,NewValue,Reason
 2026-09-06,AZO,AutoZone,INDEX_ADDED,,ACTIVE,
 2026-09-06,XYZ,"Block, Inc.",GRADE_CHANGE,B,B+,
 2026-09-06,ZBRA,Zebra Technologies,GRADE_CHANGE,B+,A,
+2026-09-07,AZO,AutoZone,INDEX_REMOVED,ACTIVE,ACTIVE,
