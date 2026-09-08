@@ -2,11 +2,11 @@
 
 > **Disclaimer:** This index is published for informational purposes only and does not constitute financial advice. Past performance does not guarantee future results.
 
-_Last updated: 2026-09-07 | Active: 443 | Warned: 22_
+_Last updated: 2026-09-08 | Active: 443 | Warned: 22_
 
 ---
 
-## 2026-09-07 (Constituent Scan)
+## 2026-09-08 (Constituent Scan)
 
 _No changes this month._
 
