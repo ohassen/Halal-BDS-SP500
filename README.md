@@ -1,6 +1,6 @@
 # Halal-BDS-SP500
 
-A self-managed **direct index** that replicates the S&P 500 with Shariah compliance (HalalScreener) and BDS filters applied. It runs entirely on free-tier infrastructure: scheduled GitHub Actions workflows trade a dedicated Alpaca account, and all state lives in a cached SQLite database plus committed CSV/Markdown artifacts. No server to host, no database to manage.
+A self-managed **direct index** that replicates the S&P 500 with Shariah compliance (Zoya) and BDS filters applied. It runs entirely on free-tier infrastructure: scheduled GitHub Actions workflows trade a dedicated Alpaca account, and all state lives in a cached SQLite database plus committed CSV/Markdown artifacts. No server to host, no database to manage.
 
 > **Disclaimer:** This repository and its contents are published for informational and educational purposes only. Nothing here constitutes financial advice, investment recommendations, or an offer to buy or sell any security. Invest at your own risk.
 
@@ -16,9 +16,9 @@ The list is held to exactly 500 names. Held S&P 500 members count toward the 500
 
 ### Why the scan runs every day
 
-The scan re-checks Sharia grades through the HalalScreener API, whose free tier caps usage at ~100 requests/day. Sharia is screened as a **monthly calendar sweep**: on the 1st of each month the whole ~1,000-name universe (S&P 500 + the Russell 1000 replacement pool) becomes due, and the script re-checks up to `SHARIA_DAILY_CAP` (99) of them per run — ~10 days to work through the list — then goes dormant on Sharia until the next 1st. BDS status is re-screened separately, once per quarter (see below).
+Sharia is screened as a **monthly calendar sweep**: on the 1st of each month the whole ~1,000-name universe (S&P 500 + the Russell 1000 replacement pool) becomes due, and the script re-checks all of it via Zoya in that same run — Zoya has no published per-day call cap, so there's no need to spread the sweep across multiple days — then goes dormant on Sharia until the next 1st. BDS status is re-screened separately, once per quarter (see below).
 
-The index rebuild, force-sells, BDS check, and CSV commit run **every day** throughout the sweep, using each name's cached grade until its monthly slot comes up (a cold-start guard defers the rebuild only on a brand-new/empty database, until every name has a baseline grade). Because the throttle is an **API daily limit, not market hours**, the scan is scheduled **every day, including weekends** (`cron: '0 13 * * *'`); any force-sell orders placed while the market is closed are `TimeInForce.DAY` orders that queue for the next session.
+The index rebuild, force-sells, BDS check, and CSV commit run **every day**, using each name's cached grade until its monthly slot comes up. Because Sharia rechecks happen instantly at the start of each month rather than being throttled by an API limit, the scan is scheduled **every day, including weekends** (`cron: '0 13 * * *'`) so the daily rebuild, BDS check, and force-sells stay current; any force-sell orders placed while the market is closed are `TimeInForce.DAY` orders that queue for the next session.
 
 ## Compliance rules
 
@@ -30,7 +30,7 @@ The index rebuild, force-sells, BDS check, and CSV commit run **every day** thro
 | BDS = NO | FORCE SELL — **permanently blacklisted** |
 | BDS = UNKNOWN | Treated as compliant — no action |
 
-- **Sharia grade** comes from the [HalalScreener](https://halalscreener.app) API.
+- **Sharia grade** comes from the [Zoya](https://zoya.finance) API, which returns a 3-tier `COMPLIANT` / `NON_COMPLIANT` / `QUESTIONABLE` verdict (`QUESTIONABLE` is treated as `NON_COMPLIANT` — no grey-zone pass) with no ratio breakdown. For symbols Zoya marks `COMPLIANT`, an in-house letter grade (`A+`..`F`) is computed from yfinance financial ratios (debt, securities, and income-purification ratios) to recover HalalScreener-style granularity; it's a risk/robustness signal layered on top and never overrides Zoya's compliance decision. `NON_COMPLIANT`/`QUESTIONABLE` map straight to grade `F` (force sell).
 - **BDS status** (whether a company is an explicit target of a Boycott, Divestment, Sanctions campaign) is classified by Claude Opus 5 **with web search** — one grounded request per symbol via the Anthropic Message Batches API — re-screened once per quarter (Mar/Jun/Sep/Dec). `UNKNOWN` is treated as compliant, since the vast majority of companies are simply not named in any campaign.
 - **Scoped screening:** each quarter only re-checks roughly the 500 index names — the S&P 500 plus just enough Russell 1000 backfill candidates (highest market cap first) to fill vacated slots — instead of the full ~1,000-name universe. Lower-cap pool names that can't reach the index are never screened, which keeps the per-quarter cost near ~500 grounded requests.
 - **Permanent blacklist:** once a company is confirmed targeted (`BDS = NO`) it is blacklisted **forever** — recorded in [`index/bds_blacklist.json`](index/bds_blacklist.json) (mirrored in the DB), never re-screened, and never re-admitted to the index even if a later check would clear it. A quarter therefore screens last quarter's passers plus any new names, and skips known violators.
@@ -42,7 +42,7 @@ The index rebuild, force-sells, BDS check, and CSV commit run **every day** thro
 - `index/snapshots/YYYY-MM.csv` — one dated snapshot of the full 500-name list and weights per calendar month, for historical/point-in-time reference
 - [`reports/event_log.csv`](reports/event_log.csv) — **permanent, append-only** log of every event: `INDEX_ADDED`, `INDEX_REMOVED`, `STATUS_CHANGE`, `GRADE_CHANGE`, `BDS_CHANGE` (columns: `Date, Symbol, Company, EventType, OldValue, NewValue, Reason`)
 - [`reports/change_log.md`](reports/change_log.md) — human-readable, rolling 30 trading days of additions, removals, and warnings
-- [`reports/sharia_progress.md`](reports/sharia_progress.md) — progress of the multi-day Sharia re-check cycle
+- [`reports/sharia_progress.md`](reports/sharia_progress.md) — status of the monthly Sharia sweep (grade + last-checked date per symbol)
 
 ---
 
@@ -57,7 +57,7 @@ Create accounts and gather API keys for each service:
 | Service | Purpose | Notes |
 |---|---|---|
 | [Alpaca](https://alpaca.markets) | Brokerage / order execution | Use a **dedicated account**. Start with a paper account (`ALPACA_PAPER=true`) before going live. Fractional/notional trading must be enabled. |
-| [HalalScreener](https://halalscreener.app) | Sharia compliance grades | Free tier ≈ 100 requests/day, 10/min. |
+| [Zoya](https://zoya.finance) | Sharia compliance verdicts | No published daily call cap. |
 | [Anthropic API](https://www.anthropic.com) | BDS classification (Claude Opus 5 + web search) | Grounded, batched, re-screened quarterly. Has per-call cost; budget accordingly (~tens of $/quarter). |
 
 ### 2. Fork and configure the repository
@@ -76,7 +76,7 @@ In your fork, go to **Settings → Secrets and variables → Actions** and add:
 |---|---|
 | `ALPACA_INDEX_API_KEY` | Alpaca API key (dedicated account) |
 | `ALPACA_INDEX_API_SECRET` | Alpaca API secret |
-| `HALALSCREENER_API_KEY` | HalalScreener API key |
+| `ZOYA_API_KEY` | Zoya API key |
 | `ANTHROPIC_API_KEY` | Anthropic API key (BDS classification — the Claude model set by `BDS_MODEL` + web search) |
 
 **Variables** (Settings → Variables → Actions → *New repository variable*):
@@ -100,7 +100,7 @@ You can also trigger either workflow manually from the **Actions** tab (both hav
 
 ### 5. First run / bootstrapping
 
-1. From the **Actions** tab, manually run **Constituent Scan**. Because the database starts empty, the Sharia re-check will span several daily runs (~99 symbols/day → ~10 days for the full ~1,000-name universe). Track progress in `reports/sharia_progress.md`.
+1. From the **Actions** tab, manually run **Constituent Scan**. Because Zoya has no daily call cap, the first run Sharia-checks the entire ~1,000-name universe in one pass (this can take a while — expect on the order of an hour depending on Zoya/yfinance latency). Track progress in `reports/sharia_progress.md`.
 2. Once the first full rebuild completes, `index/constituents.csv` is populated with ACTIVE constituents and target weights.
 3. The **Daily Investment** workflow then deploys cash into the most underweight ACTIVE names on its next weekday run.
 
@@ -114,7 +114,7 @@ pip install -r requirements.txt
 # Export the same secrets the workflows use
 export ALPACA_INDEX_API_KEY=...
 export ALPACA_INDEX_API_SECRET=...
-export HALALSCREENER_API_KEY=...
+export ZOYA_API_KEY=...
 export ANTHROPIC_API_KEY=...
 export ALPACA_PAPER=true        # keep paper trading while testing (false = live endpoint)
 export BDS_MODEL=claude-opus-5   # optional: choose the BDS classifier model
@@ -133,8 +133,7 @@ Key constants you may want to adjust live near the top of the scripts:
 | Constant | File | Default | Meaning |
 |---|---|---|---|
 | `MAX_INDEX_SIZE` | `constituent_scan.py` | `500` | Target number of constituents |
-| `SHARIA_DAILY_CAP` | `constituent_scan.py` | `99` | Max Sharia API calls per run (keep under your tier's daily limit) |
-| `SHARIA_RATE_LIMIT_S` | `constituent_scan.py` | `6.0` | Seconds between Sharia API calls (10/min) |
+| `SHARIA_RATE_LIMIT_S` | `constituent_scan.py` | `0.3` | Seconds between Sharia API calls (polite pacing only — Zoya has no published daily cap) |
 | `BDS_REFRESH_MONTHS` | `constituent_scan.py` | `{3,6,9,12}` | Calendar months the quarterly BDS web-search re-screen runs (Sharia re-screens monthly via a calendar sweep — no constant) |
 | `BDS_MODEL` | `constituent_scan.py` | `claude-opus-5` | Anthropic model for the BDS classifier (overridable via the `BDS_MODEL` env/repo variable) |
 | `BDS_BACKFILL_BUFFER` | `constituent_scan.py` | `25` | Extra Russell 1000 backfill candidates screened beyond the exact shortfall, so names that come back targeted don't leave the index short |
@@ -150,6 +149,8 @@ Key constants you may want to adjust live near the top of the scripts:
 │   ├── constituent_scan.yml # daily scan / rebuild workflow
 │   └── daily_invest.yml     # weekday cash-deploy workflow
 ├── constituent_scan.py      # constituent rebuild + compliance checks
+├── zoya_client.py           # Zoya GraphQL client (Sharia compliance verdicts)
+├── yfinance_grading.py      # in-house yfinance financial-ratio letter grading
 ├── daily_invest.py          # underweight-gap cash deployment
 ├── init_db.py               # SQLite schema bootstrap
 ├── requirements.txt         # Python dependencies
