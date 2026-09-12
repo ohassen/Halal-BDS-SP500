@@ -5,7 +5,9 @@ Steps:
   1. Fetch S&P 500 symbols from Wikipedia
   2. Fetch Russell 1000 symbols → build replacement pool (R1000 - SP500)
   3. Fetch market caps via yfinance
-  4. Sharia compliance check via HalalScreener API (monthly calendar sweep, ≤99/day)
+  4. Sharia compliance check via Zoya (COMPLIANT/NON_COMPLIANT) + an in-house yfinance
+     financial-ratio letter grade for COMPLIANT names (monthly calendar sweep; Zoya has
+     no per-day call cap so the whole due set is checked in a single run)
   5. BDS compliance check via Claude Opus + web search (Message Batches API, ~quarterly),
      scoped to the ~500 index names (S&P 500 + on-demand backfill); confirmed targets are
      blacklisted permanently and never re-screened
@@ -34,6 +36,8 @@ from alpaca.trading.enums import OrderSide, TimeInForce
 from alpaca.trading.requests import MarketOrderRequest
 
 from init_db import init_db
+from yfinance_grading import compute_ratios
+from zoya_client import get_zoya_report
 
 # ---------------------------------------------------------------------------
 # Config
@@ -45,15 +49,14 @@ CHANGE_LOG_MD = "reports/change_log.md"
 EVENT_LOG_CSV = "reports/event_log.csv"   # append-only, permanent history of all events
 SNAPSHOT_DIR = "index/snapshots"          # one dated weights snapshot per month
 
-HALALSCREENER_BASE = "https://halalscreener.app/api/v1/screen"
-HALALSCREENER_KEY = os.environ["HALALSCREENER_API_KEY"]
+ZOYA_API_KEY = os.environ["ZOYA_API_KEY"]
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY")
 ALPACA_KEY = os.environ["ALPACA_INDEX_API_KEY"]
 ALPACA_SECRET = os.environ["ALPACA_INDEX_API_SECRET"]
 ALPACA_PAPER = os.environ.get("ALPACA_PAPER", "true").lower() == "true"
 # SCAN_MODE=bds_only runs the BDS screen + status update (state machine, force-sells, CSV,
-# reports) against cached Sharia grades, skipping the live HalalScreener re-check loop. Use
-# it to apply a BDS definition change immediately instead of waiting for a scheduled scan.
+# reports) against cached Sharia grades, skipping the live Zoya re-check loop. Use it to
+# apply a BDS definition change immediately instead of waiting for a scheduled scan.
 BDS_ONLY = os.environ.get("SCAN_MODE", "full").strip().lower() == "bds_only"
 
 GRADE_RANK = {
@@ -64,15 +67,14 @@ GRADE_RANK = {
 }
 
 MAX_INDEX_SIZE = 500
-SHARIA_RATE_LIMIT_S = 6.0   # 10 requests/minute free tier limit
-SHARIA_DAILY_CAP = 99       # one under the ~100/day HalalScreener free-tier limit
-SHARIA_MAX_RETRIES = 3
+SHARIA_RATE_LIMIT_S = 0.3   # polite pacing only -- Zoya has no published per-day call cap
+SHARIA_MAX_RETRIES = 3      # retries a symbol against transient Zoya/network failures
 # Manual correction for a Sharia grade between monthly sweep windows -- e.g. a name that
 # turned non-compliant mid-month, or a cached grade that looks wrong/stale relative to a
 # fresh manual check. Unlike the BDS blacklist this is NOT permanent: it only applies while
-# the cached grade came from "cached"/"deferred" carry-forward (no live check happened this
-# run), so it never advances last_checked and is automatically superseded the next time the
-# monthly sweep genuinely re-checks the symbol. Remove the entry once satisfied it's stale.
+# the cached grade came from "cached" carry-forward (no live check happened this run), so it
+# never advances last_checked and is automatically superseded the next time the monthly
+# sweep genuinely re-checks the symbol. Remove the entry once satisfied it's stale.
 SHARIA_OVERRIDES_FILE = "index/sharia_overrides.json"
 
 # BDS screening: web-search-grounded classification via the Message Batches API,
@@ -202,35 +204,41 @@ def fetch_market_caps(symbols: list[str]) -> dict[str, float]:
 
 def check_sharia(symbol: str) -> tuple[str, str]:
     """
-    Query HalalScreener for one symbol.
-    Returns (grade, status) or ("UNKNOWN", "UNKNOWN") on failure.
+    Query Zoya for one symbol's Shariah compliance, then -- for COMPLIANT names only --
+    compute an in-house letter grade from yfinance financial ratios. Zoya's compliance
+    API exposes no ratio breakdown, only a COMPLIANT / NON_COMPLIANT / QUESTIONABLE
+    verdict, so grade granularity is recovered the same way the sibling Halal_Dip_Trader
+    project does it (see yfinance_grading.py).
+
+    Returns (grade, zoya_status):
+      - NON_COMPLIANT and QUESTIONABLE both map to grade "F" -- same binary halal gate
+        as before, no grey-zone pass -- which forces a REMOVED classification downstream.
+      - COMPLIANT maps to the yfinance-derived grade (A+ through F), or "UNKNOWN" if the
+        underlying yfinance data is unusable; an unknown grade is treated as compliant
+        elsewhere in the pipeline, same as a COMPLIANT-but-ungraded name.
+      - ("UNKNOWN", "UNKNOWN") if Zoya returns no usable data after retries.
     """
-    headers = {"Authorization": f"Bearer {HALALSCREENER_KEY}"}
+    report = None
     for attempt in range(SHARIA_MAX_RETRIES):
-        try:
-            resp = requests.get(
-                HALALSCREENER_BASE,
-                params={"symbol": symbol},
-                headers=headers,
-                timeout=10,
-            )
-            if resp.status_code == 429:
-                wait = 2 ** attempt * 2
-                print(f"  HalalScreener 429 on {symbol}, retrying in {wait}s...")
-                time.sleep(wait)
-                continue
-            if resp.status_code == 200:
-                data = resp.json()
-                grade = data.get("grade", "UNKNOWN")
-                status = data.get("status", "UNKNOWN")
-                return grade, status
-            print(f"  HalalScreener HTTP {resp.status_code} for {symbol}")
-            return "UNKNOWN", "UNKNOWN"
-        except requests.RequestException as e:
-            print(f"  HalalScreener error for {symbol}: {e}")
-            if attempt < SHARIA_MAX_RETRIES - 1:
-                time.sleep(2 ** attempt)
-    return "UNKNOWN", "UNKNOWN"
+        report = get_zoya_report(symbol, api_key=ZOYA_API_KEY)
+        if report:
+            break
+        if attempt < SHARIA_MAX_RETRIES - 1:
+            time.sleep(2 ** attempt)
+    if not report:
+        print(f"  Zoya returned no data for {symbol}")
+        return "UNKNOWN", "UNKNOWN"
+
+    zoya_status = report.get("status") or "UNKNOWN"
+    if zoya_status != "COMPLIANT":
+        # QUESTIONABLE is treated as NON_COMPLIANT -- same binary halal gate as before.
+        return "F", zoya_status
+
+    ratios, error = compute_ratios(symbol)
+    if not ratios:
+        print(f"  {symbol}: Zoya COMPLIANT but ungraded ({error})")
+        return "UNKNOWN", zoya_status
+    return ratios["grade"], zoya_status
 
 
 _VERDICT_RE = re.compile(r"VERDICT:\s*(TARGETED|NOT_TARGETED|UNKNOWN)", re.IGNORECASE)
@@ -460,9 +468,9 @@ def needs_sharia_check(last_checked: str | None) -> bool:
 def load_sharia_overrides() -> dict[str, str]:
     """Return {symbol: forced_grade} from the committed manual-override file.
 
-    Applied only to symbols carried forward as "cached"/"deferred" this run (see caller) --
-    never to a fresh live check -- so it never touches last_checked and is automatically
-    superseded the next time the monthly sweep genuinely re-checks the symbol.
+    Applied only to symbols carried forward as "cached" this run (see caller) -- never to
+    a fresh live check -- so it never touches last_checked and is automatically superseded
+    the next time the monthly sweep genuinely re-checks the symbol.
     """
     if not os.path.exists(SHARIA_OVERRIDES_FILE):
         return {}
@@ -544,42 +552,32 @@ def _write_sharia_progress(
     conn: sqlite3.Connection,
     universe_size: int,
     checked_today: int,
-    remaining_due: int,
-    ungraded: int,
 ) -> None:
-    """Write the Sharia sweep status. Runs on every scan, not just cold start, so the
-    report reflects live state instead of freezing at the last baseline run.
+    """Write the Sharia sweep status. Runs on every scan so the report reflects live
+    state instead of freezing at the last run.
 
-    Three phases:
-      - Cold start (ungraded > 0): still establishing baseline grades for the universe.
-      - Monthly sweep (remaining_due > 0): baseline done, re-checking due names this month.
-      - Idle (both 0): fully screened for the month; dormant until the next 1st.
+    Zoya has no per-day call cap, so every due symbol -- including a brand-new empty
+    DB's whole universe on the very first run -- is graded within the same run, so
+    there is no multi-day "baseline build" or "sweep in progress" window to report; the
+    universe is simply fully screened, dormant until the next 1st.
     """
     rows = conn.execute(
         "SELECT symbol, sharia_grade, last_checked FROM constituents "
         "WHERE last_checked IS NOT NULL ORDER BY symbol"
     ).fetchall()
-    graded = universe_size - ungraded
     os.makedirs("reports", exist_ok=True)
     with open(PROGRESS_MD, "w") as f:
         f.write("# Sharia Screening Progress\n\n")
-        if ungraded > 0:
-            f.write(f"**Baseline build:** {graded} / {universe_size} symbols graded "
-                    f"— {ungraded} not yet screened\n\n")
-        elif remaining_due > 0:
-            f.write(f"**Monthly sweep in progress:** {universe_size - remaining_due} / "
-                    f"{universe_size} re-checked this month — {remaining_due} still due\n\n")
-        else:
-            next_sweep = (date.today().replace(day=1) + timedelta(days=32)).replace(day=1)
-            f.write(f"**All {universe_size} symbols screened.** Monthly sweep complete — "
-                    f"next sweep begins {next_sweep.isoformat()}.\n\n")
+        next_sweep = (date.today().replace(day=1) + timedelta(days=32)).replace(day=1)
+        f.write(f"**All {universe_size} symbols screened.** Monthly sweep complete — "
+                f"next sweep begins {next_sweep.isoformat()}.\n\n")
         f.write(f"_Last updated: {TODAY} (+{checked_today} today)_\n\n")
         f.write("| Symbol | Grade | Checked |\n")
         f.write("|--------|-------|--------|\n")
         for sym, grade, checked in rows:
             emoji = GRADE_EMOJI.get(grade, "❓")
             f.write(f"| {sym} | {emoji} {grade} | {checked} |\n")
-    print(f"  Progress report written: {graded}/{universe_size} graded → {PROGRESS_MD}")
+    print(f"  Progress report written: {universe_size}/{universe_size} graded → {PROGRESS_MD}")
 
 
 # ---------------------------------------------------------------------------
@@ -615,41 +613,29 @@ def run() -> None:
     sharia_results: dict[str, tuple[str, str]] = {}
 
     if BDS_ONLY:
-        # BDS-only run: skip the live HalalScreener sweep and reuse each name's last
-        # recorded grade (UNKNOWN only if never graded). Everything downstream — BDS
-        # screen, state machine, force-sells, CSV/reports — runs normally.
+        # BDS-only run: skip the live Zoya sweep and reuse each name's last recorded
+        # grade (UNKNOWN only if never graded). Everything downstream — BDS screen,
+        # state machine, force-sells, CSV/reports — runs normally.
         for sym in all_syms:
             row = existing.get(sym)
             sharia_results[sym] = ((row["sharia_grade"] if row else "UNKNOWN"), "cached")
-        to_check, deferred = [], []
+        to_check = []
         print(f"  BDS-only mode: reused cached grades for {len(sharia_results)} symbols "
               "(no live Sharia checks)")
     else:
         # Sharia is screened as a monthly calendar sweep: on the 1st of each month the
-        # whole universe is due; we re-check up to SHARIA_DAILY_CAP/day (free-tier limit)
-        # over the following ~10 days, then go dormant until the next 1st.
-        # Priority: never-checked first, then oldest last_checked first.
-        due_syms = []
+        # whole universe becomes due and is re-checked the same run (Zoya has no per-day
+        # call cap), then goes dormant until the next 1st.
+        to_check = []
         for sym in all_syms:
             row = existing.get(sym)
             last_checked = row["last_checked"] if row else None
             if needs_sharia_check(last_checked):
-                due_syms.append((last_checked or "", sym))
+                to_check.append(sym)
             else:
                 sharia_results[sym] = (row["sharia_grade"], "cached")
 
-        due_syms.sort()  # None/"" sorts first → never-checked get priority
-        to_check = [sym for _, sym in due_syms[:SHARIA_DAILY_CAP]]
-        deferred = [sym for _, sym in due_syms[SHARIA_DAILY_CAP:]]
-
-        print(f"  {len(sharia_results)} fresh this month, {len(to_check)} to check, "
-              f"{len(deferred)} deferred to a later run")
-
-        # Carry forward the existing grade for deferred symbols (still valid until their
-        # monthly slot comes up); UNKNOWN only if there is no grade on record at all.
-        for sym in deferred:
-            row = existing.get(sym)
-            sharia_results[sym] = (row["sharia_grade"] if row else "UNKNOWN", "deferred")
+        print(f"  {len(sharia_results)} fresh this month, {len(to_check)} to check")
 
     for i, sym in enumerate(to_check, 1):
         grade, status = check_sharia(sym)
@@ -660,12 +646,12 @@ def run() -> None:
 
     print(f"  Checked/cached {len(sharia_results)} symbols")
 
-    # Manual grade overrides: only shadow a carried-forward ("cached"/"deferred") value --
-    # never a grade this run just fetched live -- so an override can force a correction
-    # right now without freezing the symbol out of its normal monthly re-check.
+    # Manual grade overrides: only shadow a carried-forward ("cached") value -- never a
+    # grade this run just fetched live -- so an override can force a correction right now
+    # without freezing the symbol out of its normal monthly re-check.
     sharia_overrides = load_sharia_overrides()
     overridden = [sym for sym, (_, src) in sharia_results.items()
-                  if sym in sharia_overrides and src in ("cached", "deferred")]
+                  if sym in sharia_overrides and src == "cached"]
     for sym in overridden:
         sharia_results[sym] = (sharia_overrides[sym], "override")
     if overridden:
@@ -674,7 +660,7 @@ def run() -> None:
 
     # Persist freshly-checked grades immediately so later runs skip them this month
     for sym, (grade, source) in sharia_results.items():
-        if source not in ("cached", "deferred", "override"):
+        if source not in ("cached", "override"):
             conn.execute(
                 """INSERT INTO constituents (symbol, sharia_grade, last_checked)
                    VALUES (?, ?, ?)
@@ -685,26 +671,10 @@ def run() -> None:
             )
     conn.commit()
 
-    # Cold-start guard: defer the full rebuild ONLY while some name has never been
-    # graded at all (empty DB / cache loss / brand-new ticker). In steady state every
-    # name carries a prior grade, so the rebuild + force-sells + BDS + CSV commit run
-    # daily even mid-sweep, using cached grades for names not yet re-checked this month.
-    checked_now = set(to_check)
-    ungraded_remaining = [
-        sym for sym in all_syms
-        if not (existing.get(sym) or {}).get("last_checked") and sym not in checked_now
-    ]
-    # Refresh the progress report every run (cold start, mid-sweep, or idle) so it never
-    # looks stuck. `deferred` are names due this month but not reached this run.
-    _write_sharia_progress(conn, len(all_syms), len(to_check), len(deferred), len(ungraded_remaining))
-    if ungraded_remaining and not BDS_ONLY:
-        conn.close()
-        print(
-            f"Cold start: {len(to_check)} graded this run, {len(ungraded_remaining)} "
-            "still ungraded. Deferring rebuild until the universe has baseline grades; "
-            "re-running next scan."
-        )
-        return
+    # With no per-day call cap, every due symbol (including a brand-new empty DB's whole
+    # universe) is graded within this same run, so there is no multi-day cold-start window
+    # to defer the rebuild for — Step 5 onward can always proceed straight through.
+    _write_sharia_progress(conn, len(all_syms), len(to_check))
 
     print("=== Step 5: BDS compliance check (scoped to index needs) ===")
     # Seed from cache (committed CSV first — survives Actions cache loss — then DB) so
@@ -980,11 +950,11 @@ def run() -> None:
 
         removed_date = TODAY if status == "REMOVED" else (old_row["removed_date"] if old_row else None)
         added_date = (old_row["added_date"] if old_row else None) or (TODAY if status != "REMOVED" else None)
-        # Only a genuine live check this run advances last_checked -- a cached/deferred/
-        # override carry-forward must not, or it would mask the symbol from next month's
-        # due-check and silently corrupt the monthly sweep's cadence.
+        # Only a genuine live check this run advances last_checked -- a cached/override
+        # carry-forward must not, or it would mask the symbol from next month's due-check
+        # and silently corrupt the monthly sweep's cadence.
         last_checked = (
-            TODAY if sharia_source not in ("cached", "deferred", "override")
+            TODAY if sharia_source not in ("cached", "override")
             else (old_row["last_checked"] if old_row else TODAY)
         )
 

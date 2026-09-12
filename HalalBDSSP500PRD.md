@@ -1,5 +1,13 @@
 # PRD: Halal-BDS-SP500 Index Fund
 
+> **Migration note:** this PRD's original design used the HalalScreener API for Sharia
+> compliance (below, as-written at the time). The live pipeline has since been migrated to
+> the [Zoya](https://zoya.finance) API + an in-house yfinance financial-ratio letter grade
+> (mirroring the approach already used in `Halal_Dip_Trader`) — see `zoya_client.py`,
+> `yfinance_grading.py`, and `check_sharia()` in `constituent_scan.py` for the current
+> implementation, and the README's Compliance rules section for the current behavior.
+> HalalScreener references below are kept as the historical record of the original design.
+
 ## Overview
 
 A self-managed "direct index" that replicates the S&P 500 with Shariah + BDS compliance

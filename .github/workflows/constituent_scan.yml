@@ -3,12 +3,11 @@ name: Constituent Scan
 on:
   schedule:
     # Every day at 13:00 UTC (09:00 ET), including weekends. Sharia is screened as a
-    # monthly calendar sweep gated by the HalalScreener free-tier daily cap: from the 1st
-    # it refreshes up to ~99 names/run until the ~1,000-name universe is covered (~10 days),
-    # then stays dormant until the next 1st. BDS re-screens once per quarter. The rebuild,
-    # force-sells, and CSV commit run every day (a cold-start guard defers the rebuild only
-    # on an empty database). Force-sell orders placed while the market is closed queue for
-    # the next session.
+    # monthly calendar sweep via Zoya (no per-day call cap): from the 1st the whole
+    # ~1,000-name universe is re-checked in that day's run, then stays dormant until the
+    # next 1st. BDS re-screens once per quarter. The rebuild, force-sells, and CSV commit
+    # run every day. Force-sell orders placed while the market is closed queue for the
+    # next session.
     - cron: '0 13 * * *'
   workflow_dispatch:
     inputs:
@@ -16,7 +15,7 @@ on:
         description: >-
           full = normal scan (Sharia sweep + BDS + rebuild).
           bds_only = BDS screen + status update against cached Sharia grades,
-          skipping the live HalalScreener re-checks. Use to apply a BDS
+          skipping the live Zoya re-checks. Use to apply a BDS
           definition change immediately instead of waiting for a scheduled run.
         type: choice
         default: full
@@ -56,7 +55,7 @@ jobs:
         env:
           ALPACA_INDEX_API_KEY: ${{ secrets.ALPACA_INDEX_API_KEY }}
           ALPACA_INDEX_API_SECRET: ${{ secrets.ALPACA_INDEX_API_SECRET }}
-          HALALSCREENER_API_KEY: ${{ secrets.HALALSCREENER_API_KEY }}
+          ZOYA_API_KEY: ${{ secrets.ZOYA_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           BDS_MODEL: ${{ vars.BDS_MODEL || 'claude-opus-5' }}
           ALPACA_PAPER: ${{ vars.ALPACA_PAPER || 'true' }}
