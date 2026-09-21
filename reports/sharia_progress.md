@@ -2,7 +2,7 @@
 
 **All 503 symbols screened.** Monthly sweep complete — next sweep begins 2026-10-01.
 
-_Last updated: 2026-09-20 (+0 today)_
+_Last updated: 2026-09-21 (+3 today)_
 
 | Symbol | Grade | Checked |
 |--------|-------|--------|
@@ -123,7 +123,7 @@ _Last updated: 2026-09-20 (+0 today)_
 | BBY | ✅ A | 2026-09-01 |
 | BC | ❌ F | 2026-08-12 |
 | BDX | ⚠️ B+ | 2026-09-01 |
-| BE | ✅ A | 2026-08-12 |
+| BE | ⚠️ B- | 2026-09-21 |
 | BEN | ⚠️ B | 2026-09-01 |
 | BEPC | ❌ F | 2026-08-12 |
 | BF-A | ❌ F | 2026-08-12 |
@@ -489,7 +489,7 @@ _Last updated: 2026-09-20 (+0 today)_
 | IDXX | ✅ A+ | 2026-09-03 |
 | IEX | ✅ A | 2026-09-03 |
 | IFF | ⚠️ B+ | 2026-09-03 |
-| ILMN | ✅ A | 2026-08-12 |
+| ILMN | ✅ A+ | 2026-09-21 |
 | INCY | ⚠️ B+ | 2026-09-03 |
 | INGM | ❌ F | 2026-08-12 |
 | INGR | ⚠️ B | 2026-08-12 |
@@ -716,7 +716,7 @@ _Last updated: 2026-09-20 (+0 today)_
 | OWL | ⚠️ B+ | 2026-08-12 |
 | OXY | ⚠️ B+ | 2026-09-04 |
 | OZK | ❌ F | 2026-08-12 |
-| P | ❓ UNKNOWN | 2026-08-12 |
+| P | ✅ A- | 2026-09-21 |
 | PAG | ✅ A | 2026-08-12 |
 | PANW | ✅ A+ | 2026-09-04 |
 | PATH | ⚠️ B | 2026-08-12 |
