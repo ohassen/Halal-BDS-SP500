@@ -3248,3 +3248,4 @@ Date,Symbol,Company,EventType,OldValue,NewValue,Reason
 2026-09-21,BE,Bloom Energy,GRADE_CHANGE,A,B-,
 2026-09-21,P,Everpure,GRADE_CHANGE,UNKNOWN,A-,
 2026-09-21,ILMN,"Illumina, Inc.",GRADE_CHANGE,A,A+,
+2026-09-22,AZO,AutoZone,INDEX_REMOVED,ACTIVE,ACTIVE,
