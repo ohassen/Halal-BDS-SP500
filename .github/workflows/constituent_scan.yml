@@ -57,7 +57,7 @@ jobs:
           ALPACA_INDEX_API_SECRET: ${{ secrets.ALPACA_INDEX_API_SECRET }}
           ZOYA_API_KEY: ${{ secrets.ZOYA_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          BDS_MODEL: ${{ vars.BDS_MODEL || 'claude-opus-5' }}
+          BDS_MODEL: ${{ vars.BDS_MODEL || 'claude-opus-5-5' }}
           ALPACA_PAPER: ${{ vars.ALPACA_PAPER || 'true' }}
           SCAN_MODE: ${{ inputs.mode || 'full' }}
         run: python constituent_scan.py

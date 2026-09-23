@@ -82,7 +82,7 @@ SHARIA_OVERRIDES_FILE = "index/sharia_overrides.json"
 # The scan runs daily, so a committed marker file (BDS_STATE_FILE) records the last
 # refresh; the screen only re-runs in a quarter-end month it hasn't already covered.
 # Off-cycle runs only screen brand-new symbols and carry the rest forward.
-BDS_MODEL = os.environ.get("BDS_MODEL", "claude-opus-5")
+BDS_MODEL = os.environ.get("BDS_MODEL", "claude-opus-5-5")
 BDS_REFRESH_MONTHS = {3, 6, 9, 12}
 BDS_BATCH_POLL_S = 30
 BDS_BATCH_MAX_WAIT = 3 * 60 * 60  # seconds to wait for the batch before carrying forward
@@ -248,6 +248,10 @@ _VERDICT_TO_BDS = {"TARGETED": "NO", "NOT_TARGETED": "YES", "UNKNOWN": "UNKNOWN"
 
 def _parse_bds_verdict(message) -> str:
     """Map a model response (which includes web-search blocks) to a stored BDS code."""
+    if getattr(message, "stop_reason", None) == "refusal":
+        category = getattr(getattr(message, "stop_details", None), "category", None)
+        print(f"  BDS request refused (category={category}); UNKNOWN")
+        return "UNKNOWN"
     text = " ".join(
         b.text for b in message.content if getattr(b, "type", None) == "text"
     )
