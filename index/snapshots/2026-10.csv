@@ -1,155 +1,155 @@
 Symbol,Company,ShariaGrade,BDSStatus,TargetWeightPct,IndexStatus,Warning
-BRK-B,Berkshire Hathaway,UNKNOWN,UNKNOWN,9.6715,ACTIVE,
-LLY,Lilly (Eli),A-,UNKNOWN,9.2761,ACTIVE,
-XOM,ExxonMobil,B+,YES,6.0963,ACTIVE,
-PG,Procter & Gamble,B,YES,3.0429,ACTIVE,
-ANET,Arista Networks,D,YES,2.3555,WARNED,sharia_D
-MRVL,Marvell Technology,A+,YES,2.1844,ACTIVE,
-LIN,Linde plc,C+,UNKNOWN,1.9618,WARNED,sharia_below_B-
-ETN,Eaton Corporation,C+,YES,1.5448,WARNED,sharia_below_B-
-WELL,Welltower,C+,YES,1.4815,WARNED,sharia_below_B-
-UNP,Union Pacific Corporation,C-,YES,1.4603,WARNED,sharia_below_B-
-COP,ConocoPhillips,C,YES,1.3827,WARNED,sharia_below_B-
-TJX,TJX Companies,B,YES,1.3248,ACTIVE,
-VRTX,Vertex Pharmaceuticals,D,YES,1.1698,WARNED,sharia_D
-PLD,Prologis,D-,YES,1.133,ACTIVE,
-PH,Parker Hannifin,B+,YES,1.1017,ACTIVE,
-NEM,Newmont,B+,UNKNOWN,1.0976,ACTIVE,
-VLO,Valero Energy,B,YES,1.0588,ACTIVE,
-SPGI,S&P Global,C+,YES,1.0382,WARNED,sharia_below_B-
-ADP,Automatic Data Processing,B-,YES,0.948,ACTIVE,
-MCK,McKesson Corporation,B-,YES,0.9381,ACTIVE,
-TT,Trane Technologies,A-,YES,0.914,ACTIVE,
-EQIX,Equinix,D,YES,0.9052,WARNED,sharia_D
-FCX,Freeport-McMoRan,B,UNKNOWN,0.9006,ACTIVE,
-PWR,Quanta Services,B+,YES,0.8972,ACTIVE,
-VRT,Vertiv,A,YES,0.861,ACTIVE,
-JCI,Johnson Controls,B,UNKNOWN,0.8307,ACTIVE,
-CEG,Constellation Energy,D-,YES,0.8283,ACTIVE,
-EMR,Emerson Electric,C,YES,0.7997,WARNED,sharia_below_B-
-CSX,CSX Corporation,D,YES,0.7757,WARNED,sharia_D
-MNST,Monster Beverage,B+,UNKNOWN,0.7458,ACTIVE,
-BE,Bloom Energy,B-,UNKNOWN,0.7319,ACTIVE,
-WM,Waste Management,D-,YES,0.7306,ACTIVE,
-DASH,DoorDash,B+,UNKNOWN,0.7149,ACTIVE,
-CTAS,Cintas,A,YES,0.7076,ACTIVE,
-SHW,Sherwin-Williams,C-,YES,0.7029,WARNED,sharia_below_B-
-REGN,Regeneron Pharmaceuticals,D,YES,0.6923,WARNED,sharia_D
-ECL,Ecolab,C-,YES,0.6887,WARNED,sharia_below_B-
-ROST,Ross Stores,B+,UNKNOWN,0.6819,ACTIVE,
-ITW,Illinois Tool Works,C+,YES,0.6743,WARNED,sharia_below_B-
-EOG,EOG Resources,B-,YES,0.6737,ACTIVE,
-SLB,Schlumberger,C,YES,0.6508,WARNED,sharia_below_B-
-CMI,Cummins,B-,YES,0.6422,ACTIVE,
-CVNA,Carvana,B+,YES,0.6337,ACTIVE,
-NSC,Norfolk Southern,D,YES,0.6305,WARNED,sharia_D
-ORLY,O'Reilly Automotive,C+,YES,0.6183,WARNED,sharia_below_B-
-CL,Colgate-Palmolive,B-,YES,0.6122,ACTIVE,
-MPWR,Monolithic Power Systems,A-,UNKNOWN,0.607,ACTIVE,
-DLR,Digital Realty,A+,UNKNOWN,0.6007,ACTIVE,
-TER,Teradyne,A+,YES,0.5885,ACTIVE,
-URI,United Rentals,D,YES,0.5796,WARNED,sharia_D
-KEYS,Keysight Technologies,B+,UNKNOWN,0.5791,ACTIVE,
-RSG,Republic Services,D,YES,0.5748,WARNED,sharia_D
-TEL,TE Connectivity,B+,YES,0.5738,ACTIVE,
-COHR,Coherent Corp.,A-,YES,0.5625,ACTIVE,
-GWW,W. W. Grainger,A-,YES,0.5432,ACTIVE,
-FIX,Comfort Systems USA,A,YES,0.5365,ACTIVE,
-COR,Cencora,C-,YES,0.5336,WARNED,sharia_below_B-
-FAST,Fastenal,A+,UNKNOWN,0.5187,ACTIVE,
-GRMN,Garmin,B-,UNKNOWN,0.5003,ACTIVE,
-NKE,"Nike, Inc.",C-,YES,0.4866,WARNED,sharia_below_B-
-NUE,Nucor,C+,YES,0.4829,WARNED,sharia_below_B-
-CAH,Cardinal Health,C,YES,0.4785,WARNED,sharia_below_B-
-FANG,Diamondback Energy,D,YES,0.4691,WARNED,sharia_D
-DVN,Devon Energy,D,YES,0.4679,WARNED,sharia_D
-WAB,Wabtec,C+,YES,0.4405,WARNED,sharia_below_B-
-ROK,Rockwell Automation,B+,UNKNOWN,0.4401,ACTIVE,
-EBAY,eBay Inc.,C,YES,0.4269,WARNED,sharia_below_B-
-CARR,Carrier Global,D-,YES,0.4116,ACTIVE,
-P,Everpure,A-,UNKNOWN,0.4093,ACTIVE,
-WDAY,"Workday, Inc.",B,YES,0.4076,ACTIVE,
-AZO,AutoZone,D-,YES,0.4066,ACTIVE,
-FERG,Ferguson Enterprises,UNKNOWN,UNKNOWN,0.3907,ACTIVE,
-MCHP,Microchip Technology,C+,UNKNOWN,0.3892,WARNED,sharia_below_B-
-WAT,Waters Corporation,C+,YES,0.3831,WARNED,sharia_below_B-
-FLEX,Flex Ltd.,A+,UNKNOWN,0.3777,ACTIVE,
-IDXX,Idexx Laboratories,A+,YES,0.3725,ACTIVE,
-ILMN,"Illumina, Inc.",A+,YES,0.3705,ACTIVE,
-MSCI,MSCI,C,UNKNOWN,0.3607,WARNED,sharia_below_B-
-DHI,D. R. Horton,C-,YES,0.3474,WARNED,sharia_below_B-
-ADM,Archer Daniels Midland,D,YES,0.3445,WARNED,sharia_D
-CBRE,CBRE Group,D-,YES,0.3419,ACTIVE,
-ODFL,Old Dominion,A+,YES,0.3324,ACTIVE,
-PAYX,Paychex,C+,YES,0.3254,WARNED,sharia_below_B-
-MLM,Martin Marietta Materials,C-,YES,0.3091,WARNED,sharia_below_B-
-EME,Emcor,A+,YES,0.3058,ACTIVE,
-BIIB,Biogen,D,UNKNOWN,0.3028,WARNED,sharia_D
-KVUE,Kenvue,D,UNKNOWN,0.3024,WARNED,sharia_D
-DXCM,Dexcom,B+,YES,0.2958,ACTIVE,
-STLD,Steel Dynamics,C+,UNKNOWN,0.2942,WARNED,sharia_below_B-
-RMD,ResMed|,B+,YES,0.2919,ACTIVE,
-HSY,Hershey Company (The),C-,UNKNOWN,0.2898,WARNED,sharia_below_B-
-KMB,Kimberly-Clark,C-,UNKNOWN,0.2873,WARNED,sharia_below_B-
-VMC,Vulcan Materials Company,C,YES,0.2847,WARNED,sharia_below_B-
-JBL,Jabil,C+,YES,0.2837,WARNED,sharia_below_B-
-EQT,EQT Corporation,C-,YES,0.2822,WARNED,sharia_below_B-
-ON,ON Semiconductor,C+,YES,0.2794,WARNED,sharia_below_B-
-MTD,Mettler Toledo,B+,UNKNOWN,0.2706,ACTIVE,
-IR,Ingersoll Rand,C,YES,0.2661,WARNED,sharia_below_B-
-CTSH,Cognizant,B+,YES,0.2525,ACTIVE,
-WSM,"Williams-Sonoma, Inc.",A-,YES,0.2459,ACTIVE,
-Q,Qnity Electronics,C,UNKNOWN,0.2399,WARNED,sharia_below_B-
-VRSN,Verisign,B,YES,0.2355,ACTIVE,
-WST,West Pharmaceutical Services,A+,YES,0.2333,ACTIVE,
-DGX,Quest Diagnostics,D,YES,0.2319,WARNED,sharia_D
-DOV,Dover Corporation,C+,UNKNOWN,0.2303,WARNED,sharia_below_B-
-CPRT,Copart,C,YES,0.2287,WARNED,sharia_below_B-
-LH,Labcorp,D-,UNKNOWN,0.2251,ACTIVE,
-HUBB,Hubbell Incorporated,D,YES,0.2231,WARNED,sharia_D
-EXPD,Expeditors International,A,YES,0.2209,ACTIVE,
-INCY,Incyte,C-,YES,0.2185,WARNED,sharia_below_B-
-TPR,"Tapestry, Inc.",C,YES,0.2147,WARNED,sharia_below_B-
-XYL,Xylem Inc.,C+,YES,0.2128,WARNED,sharia_below_B-
-TPL,Texas Pacific Land Corporation,A-,YES,0.2104,ACTIVE,
-ULTA,Ulta Beauty,B-,YES,0.2104,ACTIVE,
-VLTO,Veralto,C+,YES,0.2092,WARNED,sharia_below_B-
-CHD,Church & Dwight,A+,YES,0.2023,ACTIVE,
-PHM,PulteGroup,B,YES,0.2001,ACTIVE,
-RL,Ralph Lauren Corporation,C+,YES,0.1968,WARNED,sharia_below_B-
-JBHT,J.B. Hunt,A-,YES,0.1931,ACTIVE,
-PKG,Packaging Corporation of America,D,YES,0.1861,WARNED,sharia_D
-STE,Steris,B,UNKNOWN,0.1848,ACTIVE,
-EXE,Expand Energy,C-,UNKNOWN,0.1804,WARNED,sharia_below_B-
-FSLR,First Solar,C,UNKNOWN,0.1696,WARNED,sharia_below_B-
-BR,Broadridge Financial Solutions,C-,YES,0.166,WARNED,sharia_below_B-
-NDSN,Nordson Corporation,B,YES,0.1659,ACTIVE,
-CHRW,C.H. Robinson,A+,YES,0.1615,ACTIVE,
-DD,DuPont,C,YES,0.1587,WARNED,sharia_below_B-
-CF,CF Industries,C-,YES,0.1563,WARNED,sharia_below_B-
-IEX,IDEX Corporation,B-,YES,0.1543,ACTIVE,
-RVTY,Revvity,C-,YES,0.1535,WARNED,sharia_below_B-
-FTV,Fortive,D,UNKNOWN,0.1515,WARNED,sharia_D
-FDXF,FedEx Freight,D,UNKNOWN,0.1505,WARNED,sharia_D
-J,Jacobs Solutions,D,UNKNOWN,0.148,WARNED,sharia_D
-NVR,"NVR, Inc.",B+,YES,0.1477,ACTIVE,
-ROL,"Rollins, Inc.",B+,UNKNOWN,0.1325,ACTIVE,
-CRL,Charles River Laboratories,D,YES,0.126,WARNED,sharia_D
-TYL,Tyler Technologies,B-,YES,0.123,ACTIVE,
-MAS,Masco,D,YES,0.122,WARNED,sharia_D
-ALLE,Allegion,C,YES,0.1184,WARNED,sharia_below_B-
-AVY,Avery Dennison,D-,YES,0.1184,ACTIVE,
-SWKS,Skyworks Solutions,B+,YES,0.1157,ACTIVE,
-LII,Lennox International,C,UNKNOWN,0.1127,WARNED,sharia_below_B-
-ALB,Albemarle Corporation,C,YES,0.1126,WARNED,sharia_below_B-
-GNRC,Generac,C+,YES,0.1109,WARNED,sharia_below_B-
-BF-B,Brown–Forman,UNKNOWN,YES,0.1078,ACTIVE,
-TECH,Bio-Techne,A+,UNKNOWN,0.103,ACTIVE,
-COO,Cooper Companies (The),D,UNKNOWN,0.0989,WARNED,sharia_D
-LULU,Lululemon Athletica,C-,YES,0.0986,WARNED,sharia_below_B-
-DECK,Deckers Brands,C+,YES,0.0982,WARNED,sharia_below_B-
-JKHY,Jack Henry & Associates,A-,YES,0.0916,ACTIVE,
-FDS,FactSet,C,UNKNOWN,0.09,WARNED,sharia_below_B-
-PODD,Insulet Corporation,B,YES,0.0822,ACTIVE,
-PNR,Pentair,C-,YES,0.0766,WARNED,sharia_below_B-
-AOS,A. O. Smith,B+,UNKNOWN,0.0697,ACTIVE,
+BRK-B,Berkshire Hathaway,UNKNOWN,UNKNOWN,9.6884,ACTIVE,
+LLY,Lilly (Eli),A-,UNKNOWN,9.1592,ACTIVE,
+XOM,ExxonMobil,B+,YES,6.0828,ACTIVE,
+PG,Procter & Gamble,B,YES,3.0233,ACTIVE,
+ANET,Arista Networks,D,YES,2.3418,WARNED,sharia_D
+MRVL,Marvell Technology,A+,YES,2.2036,ACTIVE,
+LIN,Linde plc,C+,UNKNOWN,1.9822,WARNED,sharia_below_B-
+ETN,Eaton Corporation,C+,YES,1.5287,WARNED,sharia_below_B-
+UNP,Union Pacific Corporation,C-,YES,1.4846,WARNED,sharia_below_B-
+WELL,Welltower,C+,YES,1.4818,WARNED,sharia_below_B-
+COP,ConocoPhillips,C,YES,1.3747,WARNED,sharia_below_B-
+TJX,TJX Companies,B,YES,1.3157,ACTIVE,
+VRTX,Vertex Pharmaceuticals,D,YES,1.1524,WARNED,sharia_D
+PLD,Prologis,D-,YES,1.1317,ACTIVE,
+PH,Parker Hannifin,B+,YES,1.1058,ACTIVE,
+NEM,Newmont,B+,UNKNOWN,1.0912,ACTIVE,
+VLO,Valero Energy,B,YES,1.0625,ACTIVE,
+SPGI,S&P Global,C+,YES,1.0205,WARNED,sharia_below_B-
+MCK,McKesson Corporation,B-,YES,0.9294,ACTIVE,
+FCX,Freeport-McMoRan,B,UNKNOWN,0.9288,ACTIVE,
+ADP,Automatic Data Processing,B-,YES,0.9204,ACTIVE,
+PWR,Quanta Services,B+,YES,0.9164,ACTIVE,
+TT,Trane Technologies,A-,YES,0.9154,ACTIVE,
+EQIX,Equinix,D,YES,0.9123,WARNED,sharia_D
+VRT,Vertiv,A,YES,0.8703,ACTIVE,
+JCI,Johnson Controls,B,UNKNOWN,0.8498,ACTIVE,
+CEG,Constellation Energy,D-,YES,0.8138,ACTIVE,
+EMR,Emerson Electric,C,YES,0.8103,WARNED,sharia_below_B-
+CSX,CSX Corporation,D,YES,0.79,WARNED,sharia_D
+BE,Bloom Energy,B-,UNKNOWN,0.7676,ACTIVE,
+MNST,Monster Beverage,B+,UNKNOWN,0.7491,ACTIVE,
+DASH,DoorDash,B+,UNKNOWN,0.7347,ACTIVE,
+WM,Waste Management,D-,YES,0.7347,ACTIVE,
+SHW,Sherwin-Williams,C-,YES,0.6975,WARNED,sharia_below_B-
+CTAS,Cintas,A,YES,0.692,ACTIVE,
+ECL,Ecolab,C-,YES,0.6913,WARNED,sharia_below_B-
+REGN,Regeneron Pharmaceuticals,D,YES,0.6831,WARNED,sharia_D
+ITW,Illinois Tool Works,C+,YES,0.6739,WARNED,sharia_below_B-
+EOG,EOG Resources,B-,YES,0.6684,ACTIVE,
+ROST,Ross Stores,B+,UNKNOWN,0.6612,ACTIVE,
+SLB,Schlumberger,C,YES,0.656,WARNED,sharia_below_B-
+CMI,Cummins,B-,YES,0.6537,ACTIVE,
+NSC,Norfolk Southern,D,YES,0.6424,WARNED,sharia_D
+CVNA,Carvana,B+,YES,0.6404,ACTIVE,
+MPWR,Monolithic Power Systems,A-,UNKNOWN,0.6334,ACTIVE,
+TER,Teradyne,A+,YES,0.6299,ACTIVE,
+ORLY,O'Reilly Automotive,C+,YES,0.6171,WARNED,sharia_below_B-
+DLR,Digital Realty,A+,UNKNOWN,0.6074,ACTIVE,
+CL,Colgate-Palmolive,B-,YES,0.6059,ACTIVE,
+URI,United Rentals,D,YES,0.6037,WARNED,sharia_D
+KEYS,Keysight Technologies,B+,UNKNOWN,0.5919,ACTIVE,
+COHR,Coherent Corp.,A-,YES,0.5894,ACTIVE,
+RSG,Republic Services,D,YES,0.5762,WARNED,sharia_D
+TEL,TE Connectivity,B+,YES,0.5753,ACTIVE,
+FIX,Comfort Systems USA,A,YES,0.5509,ACTIVE,
+GWW,W. W. Grainger,A-,YES,0.5436,ACTIVE,
+COR,Cencora,C-,YES,0.5274,WARNED,sharia_below_B-
+FAST,Fastenal,A+,UNKNOWN,0.5238,ACTIVE,
+GRMN,Garmin,B-,UNKNOWN,0.4913,ACTIVE,
+NUE,Nucor,C+,YES,0.4898,WARNED,sharia_below_B-
+CAH,Cardinal Health,C,YES,0.4722,WARNED,sharia_below_B-
+DVN,Devon Energy,D,YES,0.4701,WARNED,sharia_D
+FANG,Diamondback Energy,D,YES,0.4656,WARNED,sharia_D
+ROK,Rockwell Automation,B+,UNKNOWN,0.4523,ACTIVE,
+NKE,"Nike, Inc.",C-,YES,0.4481,WARNED,sharia_below_B-
+WAB,Wabtec,C+,YES,0.4394,WARNED,sharia_below_B-
+EBAY,eBay Inc.,C,YES,0.4276,WARNED,sharia_below_B-
+P,Everpure,A-,UNKNOWN,0.4191,ACTIVE,
+CARR,Carrier Global,D-,YES,0.4095,ACTIVE,
+AZO,AutoZone,D-,YES,0.4062,ACTIVE,
+WDAY,"Workday, Inc.",B,YES,0.4056,ACTIVE,
+MCHP,Microchip Technology,C+,UNKNOWN,0.3988,WARNED,sharia_below_B-
+FERG,Ferguson Enterprises,UNKNOWN,UNKNOWN,0.3899,ACTIVE,
+FLEX,Flex Ltd.,A+,UNKNOWN,0.3876,ACTIVE,
+WAT,Waters Corporation,C+,YES,0.3762,WARNED,sharia_below_B-
+IDXX,Idexx Laboratories,A+,YES,0.3685,ACTIVE,
+ILMN,"Illumina, Inc.",A+,YES,0.364,ACTIVE,
+MSCI,MSCI,C,UNKNOWN,0.353,WARNED,sharia_below_B-
+ADM,Archer Daniels Midland,D,YES,0.3503,WARNED,sharia_D
+DHI,D. R. Horton,C-,YES,0.3419,WARNED,sharia_below_B-
+CBRE,CBRE Group,D-,YES,0.3412,ACTIVE,
+ODFL,Old Dominion,A+,YES,0.338,ACTIVE,
+PAYX,Paychex,C+,YES,0.3172,WARNED,sharia_below_B-
+EME,Emcor,A+,YES,0.3151,ACTIVE,
+MLM,Martin Marietta Materials,C-,YES,0.3095,WARNED,sharia_below_B-
+KVUE,Kenvue,D,UNKNOWN,0.2979,WARNED,sharia_D
+STLD,Steel Dynamics,C+,UNKNOWN,0.2976,WARNED,sharia_below_B-
+BIIB,Biogen,D,UNKNOWN,0.2934,WARNED,sharia_D
+ON,ON Semiconductor,C+,YES,0.2914,WARNED,sharia_below_B-
+DXCM,Dexcom,B+,YES,0.2889,ACTIVE,
+HSY,Hershey Company (The),C-,UNKNOWN,0.2884,WARNED,sharia_below_B-
+JBL,Jabil,C+,YES,0.2881,WARNED,sharia_below_B-
+RMD,ResMed|,B+,YES,0.2851,ACTIVE,
+VMC,Vulcan Materials Company,C,YES,0.2846,WARNED,sharia_below_B-
+KMB,Kimberly-Clark,C-,UNKNOWN,0.2827,WARNED,sharia_below_B-
+EQT,EQT Corporation,C-,YES,0.2818,WARNED,sharia_below_B-
+MTD,Mettler Toledo,B+,UNKNOWN,0.2681,ACTIVE,
+IR,Ingersoll Rand,C,YES,0.2672,WARNED,sharia_below_B-
+Q,Qnity Electronics,C,UNKNOWN,0.2474,WARNED,sharia_below_B-
+WSM,"Williams-Sonoma, Inc.",A-,YES,0.2461,ACTIVE,
+CTSH,Cognizant,B+,YES,0.2384,ACTIVE,
+VRSN,Verisign,B,YES,0.2328,ACTIVE,
+WST,West Pharmaceutical Services,A+,YES,0.2319,ACTIVE,
+DOV,Dover Corporation,C+,UNKNOWN,0.2307,WARNED,sharia_below_B-
+DGX,Quest Diagnostics,D,YES,0.2304,WARNED,sharia_D
+CPRT,Copart,C,YES,0.2285,WARNED,sharia_below_B-
+HUBB,Hubbell Incorporated,D,YES,0.2252,WARNED,sharia_D
+EXPD,Expeditors International,A,YES,0.2249,ACTIVE,
+LH,Labcorp,D-,UNKNOWN,0.224,ACTIVE,
+XYL,Xylem Inc.,C+,YES,0.2145,WARNED,sharia_below_B-
+TPL,Texas Pacific Land Corporation,A-,YES,0.2108,ACTIVE,
+TPR,"Tapestry, Inc.",C,YES,0.21,WARNED,sharia_below_B-
+INCY,Incyte,C-,YES,0.21,WARNED,sharia_below_B-
+ULTA,Ulta Beauty,B-,YES,0.2095,ACTIVE,
+VLTO,Veralto,C+,YES,0.2079,WARNED,sharia_below_B-
+CHD,Church & Dwight,A+,YES,0.2011,ACTIVE,
+PHM,PulteGroup,B,YES,0.1987,ACTIVE,
+JBHT,J.B. Hunt,A-,YES,0.1974,ACTIVE,
+RL,Ralph Lauren Corporation,C+,YES,0.1938,WARNED,sharia_below_B-
+PKG,Packaging Corporation of America,D,YES,0.1837,WARNED,sharia_D
+STE,Steris,B,UNKNOWN,0.1822,ACTIVE,
+EXE,Expand Energy,C-,UNKNOWN,0.1785,WARNED,sharia_below_B-
+FSLR,First Solar,C,UNKNOWN,0.1697,WARNED,sharia_below_B-
+NDSN,Nordson Corporation,B,YES,0.1667,ACTIVE,
+CHRW,C.H. Robinson,A+,YES,0.1649,ACTIVE,
+BR,Broadridge Financial Solutions,C-,YES,0.1601,WARNED,sharia_below_B-
+DD,DuPont,C,YES,0.1585,WARNED,sharia_below_B-
+CF,CF Industries,C-,YES,0.1579,WARNED,sharia_below_B-
+IEX,IDEX Corporation,B-,YES,0.155,ACTIVE,
+FTV,Fortive,D,UNKNOWN,0.1546,WARNED,sharia_D
+RVTY,Revvity,C-,YES,0.1517,WARNED,sharia_below_B-
+FDXF,FedEx Freight,D,UNKNOWN,0.1516,WARNED,sharia_D
+J,Jacobs Solutions,D,UNKNOWN,0.1457,WARNED,sharia_D
+NVR,"NVR, Inc.",B+,YES,0.1435,ACTIVE,
+ROL,"Rollins, Inc.",B+,UNKNOWN,0.1307,ACTIVE,
+CRL,Charles River Laboratories,D,YES,0.1251,WARNED,sharia_D
+MAS,Masco,D,YES,0.1215,WARNED,sharia_D
+TYL,Tyler Technologies,B-,YES,0.1195,ACTIVE,
+ALLE,Allegion,C,YES,0.1191,WARNED,sharia_below_B-
+AVY,Avery Dennison,D-,YES,0.1168,ACTIVE,
+SWKS,Skyworks Solutions,B+,YES,0.1152,ACTIVE,
+GNRC,Generac,C+,YES,0.1146,WARNED,sharia_below_B-
+LII,Lennox International,C,UNKNOWN,0.1111,WARNED,sharia_below_B-
+ALB,Albemarle Corporation,C,YES,0.1109,WARNED,sharia_below_B-
+BF-B,Brown–Forman,UNKNOWN,YES,0.1083,ACTIVE,
+TECH,Bio-Techne,A+,UNKNOWN,0.1023,ACTIVE,
+COO,Cooper Companies (The),D,UNKNOWN,0.0982,WARNED,sharia_D
+DECK,Deckers Brands,C+,YES,0.0966,WARNED,sharia_below_B-
+LULU,Lululemon Athletica,C-,YES,0.0938,WARNED,sharia_below_B-
+JKHY,Jack Henry & Associates,A-,YES,0.0904,ACTIVE,
+FDS,FactSet,C,UNKNOWN,0.0862,WARNED,sharia_below_B-
+PODD,Insulet Corporation,B,YES,0.082,ACTIVE,
+PNR,Pentair,C-,YES,0.0767,WARNED,sharia_below_B-
+AOS,A. O. Smith,B+,UNKNOWN,0.0695,ACTIVE,
