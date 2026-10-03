@@ -3755,3 +3755,4 @@ Date,Symbol,Company,EventType,OldValue,NewValue,Reason
 2026-10-01,ZBH,Zimmer Biomet,INDEX_REMOVED,ACTIVE,REMOVED,sharia_F
 2026-10-01,ZBH,Zimmer Biomet,STATUS_CHANGE,ACTIVE,REMOVED,sharia_F
 2026-10-01,ZBH,Zimmer Biomet,GRADE_CHANGE,A+,F,
+2026-10-03,TT,Trane Technologies,INDEX_REMOVED,ACTIVE,ACTIVE,
