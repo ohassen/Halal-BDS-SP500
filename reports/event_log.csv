@@ -3757,3 +3757,5 @@ Date,Symbol,Company,EventType,OldValue,NewValue,Reason
 2026-10-01,ZBH,Zimmer Biomet,GRADE_CHANGE,A+,F,
 2026-10-03,TT,Trane Technologies,INDEX_REMOVED,ACTIVE,ACTIVE,
 2026-10-04,TT,Trane Technologies,INDEX_ADDED,,ACTIVE,
+2026-10-08,TWLO,Twilio,GRADE_CHANGE,A,B+,
+2026-10-08,VYLR,Vylor,INDEX_ADDED,,ACTIVE,

@@ -2,7 +2,7 @@
 
 **All 503 symbols screened.** Monthly sweep complete — next sweep begins 2026-11-01.
 
-_Last updated: 2026-10-07 (+0 today)_
+_Last updated: 2026-10-08 (+3 today)_
 
 | Symbol | Grade | Checked |
 |--------|-------|--------|
@@ -846,6 +846,7 @@ _Last updated: 2026-10-07 (+0 today)_
 | SIRI | ❌ F | 2026-08-12 |
 | SITE | ✅ A+ | 2026-08-12 |
 | SJM | ❌ F | 2026-10-01 |
+| SKYD | ❌ F | 2026-10-08 |
 | SLB | ❌ C | 2026-10-01 |
 | SLGN | ❌ F | 2026-08-12 |
 | SLM | ❌ F | 2026-08-12 |
@@ -933,7 +934,7 @@ _Last updated: 2026-10-07 (+0 today)_
 | TTEK | ✅ A | 2026-08-12 |
 | TTWO | ❌ F | 2026-10-01 |
 | TW | ⚠️ B+ | 2026-08-12 |
-| TWLO | ✅ A | 2026-08-12 |
+| TWLO | ⚠️ B+ | 2026-10-08 |
 | TXN | ✅ A- | 2026-10-01 |
 | TXRH | ✅ A | 2026-08-12 |
 | TXT | ❌ F | 2026-10-01 |
@@ -985,6 +986,7 @@ _Last updated: 2026-10-07 (+0 today)_
 | VTR | ❌ F | 2026-10-01 |
 | VTRS | ❌ F | 2026-10-01 |
 | VVV | ⚠️ B | 2026-08-12 |
+| VYLR | ❓ UNKNOWN | 2026-10-08 |
 | VZ | ❌ F | 2026-10-01 |
 | W | ❌ F | 2026-08-12 |
 | WAB | ❓ C+ | 2026-10-01 |
