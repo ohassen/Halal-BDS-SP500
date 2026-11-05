@@ -2,7 +2,7 @@
 
 **All 503 symbols screened.** Monthly sweep complete — next sweep begins 2026-12-01.
 
-_Last updated: 2026-11-04 (+0 today)_
+_Last updated: 2026-11-05 (+1 today)_
 
 | Symbol | Grade | Checked |
 |--------|-------|--------|
@@ -698,7 +698,7 @@ _Last updated: 2026-11-04 (+0 today)_
 | OGN | ❌ F | 2026-08-12 |
 | OHI | ❌ F | 2026-08-12 |
 | OKE | ❌ F | 2026-11-01 |
-| OKTA | ⚠️ B | 2026-08-12 |
+| OKTA | ❓ C+ | 2026-11-05 |
 | OLED | ❌ F | 2026-08-12 |
 | OLLI | ⚠️ B+ | 2026-08-12 |
 | OLN | ❌ F | 2026-08-12 |

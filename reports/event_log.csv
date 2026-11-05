@@ -3874,3 +3874,4 @@ Date,Symbol,Company,EventType,OldValue,NewValue,Reason
 2026-11-01,GWW,W. W. Grainger,GRADE_CHANGE,A-,A,
 2026-11-01,WM,Waste Management,STATUS_CHANGE,ACTIVE,WARNED,sharia_D
 2026-11-01,WM,Waste Management,GRADE_CHANGE,D-,D,
+2026-11-05,OKTA,"Okta, Inc.",GRADE_CHANGE,B,C+,
